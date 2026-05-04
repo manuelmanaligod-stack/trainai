@@ -23,12 +23,23 @@ def get_access_token():
     r.raise_for_status()
     return r.json()["access_token"]
 
-def get_activities(token, count=15):
-    r = requests.get("https://www.strava.com/api/v3/athlete/activities",
-                     headers={"Authorization": f"Bearer {token}"},
-                     params={"per_page": count})
-    r.raise_for_status()
-    return r.json()
+def get_activities(token, count=100):
+    """Fetch activities going back to Jan 2025."""
+    all_activities = []
+    after_ts = int(datetime(2025, 1, 1).timestamp())
+    page = 1
+    while page <= 4:  # max 4 pages = 120 activities
+        r = requests.get("https://www.strava.com/api/v3/athlete/activities",
+                         headers={"Authorization": f"Bearer {token}"},
+                         params={"per_page": 30, "page": page, "after": after_ts})
+        if r.status_code != 200:
+            break
+        acts = r.json()
+        if not acts:
+            break
+        all_activities.extend(acts)
+        page += 1
+    return all_activities
 
 def get_activity_zones(token, activity_id):
     r = requests.get(f"https://www.strava.com/api/v3/activities/{activity_id}/zones",
@@ -177,16 +188,17 @@ class Handler(BaseHTTPRequestHandler):
                     goals = {}
 
                 token      = get_access_token()
-                activities = get_activities(token, 15)
-                ai_data    = ask_groq_full(activities, goals)
+                activities = get_activities(token)
+                # Only send last 15 to AI to keep prompt concise
+                ai_data    = ask_groq_full(activities[:15], goals)
 
                 activity_list = []
                 for i, a in enumerate(activities):
                     avg_hr  = a.get("average_heartrate")
                     buckets = []
-                    if avg_hr:
+                    if avg_hr and i < 15:
                         buckets = get_activity_zones(token, a["id"])
-                    wi = next((w for w in ai_data.get("workouts",[]) if w.get("index")==i), {})
+                    wi = next((w for w in ai_data.get("workouts",[]) if w.get("index")==i), {}) if i < 15 else {}
                     activity_list.append({
                         "id":          a["id"],
                         "date":        a.get("start_date_local","")[:10],
