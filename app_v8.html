@@ -222,18 +222,20 @@ function getZone(hr){
   return 4;
 }
 
-function estimateZones(avgHr, durationMins){
+function estimateZones(avgHr, durationMins, sport){
   if(!avgHr||!durationMins) return null;
+
+  // Walks stay entirely in Z1 — HR never reaches 124bpm walking
+  if(sport === 'Walk') {
+    const secs = durationMins * 60;
+    return [secs, 0, 0, 0, 0];
+  }
+
   const z=getZone(avgHr);
   const zmin=ZB[z], zmax=ZB[z+1]<500?ZB[z+1]:ZB[z]+20;
-  const pos=(avgHr-zmin)/(zmax-zmin); // 0=bottom, 1=top of zone
-
-  // How far is avgHr from the nearest zone boundary (0=at edge, 0.5=middle)
+  const pos=(avgHr-zmin)/(zmax-zmin);
   const distFromEdge = Math.min(pos, 1-pos);
-
-  // The further from a boundary, the more time stays in main zone
-  // Low HR (e.g. 84bpm in Z1 at pos=0.68) stays almost entirely in Z1
-  const spillFactor = distFromEdge * 0.3; // max 15% spill at zone edges
+  const spillFactor = distFromEdge * 0.3;
   const mainW = 1.0 - spillFactor * 2;
   const sDn = spillFactor * (1-pos);
   const sUp = spillFactor * pos;
@@ -276,7 +278,7 @@ function renderSummary(acts){
   document.getElementById('weekText').textContent=allWeekText;
 
   const totals=[0,0,0,0,0];
-  acts.forEach(a=>{ const e=estimateZones(a.avg_hr,a.duration); if(e) e.forEach((t,i)=>totals[i]+=t); });
+  acts.forEach(a=>{ const e=estimateZones(a.avg_hr,a.duration,a.sport); if(e) e.forEach((t,i)=>totals[i]+=t); });
   const grand=totals.reduce((s,t)=>s+t,0)||1;
   const maxT=Math.max(...totals,1);
 
@@ -313,7 +315,7 @@ function renderActivities(acts){
     const zone=getZone(a.avg_hr);
     const hrClr=a.avg_hr?ZC[zone]:'#ccc';
     const dist=a.distance>0?`${a.distance}km · `:'';
-    const zt=estimateZones(a.avg_hr,a.duration);
+    const zt=estimateZones(a.avg_hr,a.duration,a.sport);
     const total=zt?zt.reduce((s,t)=>s+t,0):0;
     const maxT=zt?Math.max(...zt,1):1;
 
