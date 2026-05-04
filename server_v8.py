@@ -40,42 +40,46 @@ def get_activity_zones(token, activity_id):
     return []
 
 def get_best_efforts(token):
-    """Fetch best efforts from recent runs via activity detail endpoint."""
-    # Get recent runs
-    r = requests.get("https://www.strava.com/api/v3/athlete/activities",
-                     headers={"Authorization": f"Bearer {token}"},
-                     params={"per_page": 30})
-    if r.status_code != 200:
-        return []
-    activities = r.json()
-    runs = [a for a in activities if a.get("sport_type") == "Run"]
+    """Fetch best efforts from runs going back to 2025."""
+    all_efforts = {}
+    page = 1
+    after_ts = int(datetime(2025, 1, 1).timestamp())
 
-    # Collect best efforts across all recent runs
-    efforts_map = {}  # distance_name -> best effort
-    for run in runs[:10]:  # limit to 10 runs to avoid rate limits
-        detail = requests.get(
-            f"https://www.strava.com/api/v3/activities/{run['id']}",
-            headers={"Authorization": f"Bearer {token}"}
-        )
-        if detail.status_code != 200:
-            continue
-        data = detail.json()
-        for effort in data.get("best_efforts", []):
-            name = effort.get("name", "")
-            elapsed = effort.get("elapsed_time", 0)
-            date = effort.get("start_date_local", "")[:10]
-            dist = effort.get("distance", 0)
-            # Keep only the fastest for each distance
-            if name not in efforts_map or elapsed < efforts_map[name]["elapsed_time"]:
-                efforts_map[name] = {
-                    "name": name,
-                    "elapsed_time": elapsed,
-                    "distance": dist,
-                    "date": date,
-                    "activity_id": run["id"],
-                    "activity_name": run.get("name", ""),
-                }
-    return list(efforts_map.values())
+    while page <= 10:  # max 10 pages = 300 activities
+        r = requests.get("https://www.strava.com/api/v3/athlete/activities",
+                         headers={"Authorization": f"Bearer {token}"},
+                         params={"per_page": 30, "page": page, "after": after_ts})
+        if r.status_code != 200:
+            break
+        activities = r.json()
+        if not activities:
+            break
+
+        runs = [a for a in activities if a.get("sport_type") == "Run"]
+        for run in runs:
+            detail = requests.get(
+                f"https://www.strava.com/api/v3/activities/{run['id']}",
+                headers={"Authorization": f"Bearer {token}"}
+            )
+            if detail.status_code != 200:
+                continue
+            data = detail.json()
+            for effort in data.get("best_efforts", []):
+                name = effort.get("name", "")
+                elapsed = effort.get("elapsed_time", 0)
+                date = effort.get("start_date_local", "")[:10]
+                dist = effort.get("distance", 0)
+                if name not in all_efforts or elapsed < all_efforts[name]["elapsed_time"]:
+                    all_efforts[name] = {
+                        "name": name,
+                        "elapsed_time": elapsed,
+                        "distance": dist,
+                        "date": date,
+                        "activity_name": run.get("name", ""),
+                    }
+        page += 1
+
+    return list(all_efforts.values())
 
 def classify_zone(avg_hr):
     if not avg_hr: return None
