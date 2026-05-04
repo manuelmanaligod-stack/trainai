@@ -1,18 +1,19 @@
 """
-TrainAI Server v8
-------------------
-Run with: python3 server_v8.py
+TrainAI Server v8 — Railway Edition
+-------------------------------------
+Run locally: python server_v8.py
+Deployed on: Railway
 """
 
 from http.server import HTTPServer, BaseHTTPRequestHandler
-import json, requests
+import json, requests, os
 from groq import Groq
 from datetime import datetime
 
-STRAVA_CLIENT_ID     = "234502"
-STRAVA_CLIENT_SECRET = "ce8eedc1d05808af8cfb2829c833abb5d69dc9f4"
-STRAVA_REFRESH_TOKEN = "2ac675776dea85002172508cdeb748ec0fe1637c"
-GROQ_API_KEY         = "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"
+STRAVA_CLIENT_ID     = os.environ.get("STRAVA_CLIENT_ID",     "234502")
+STRAVA_CLIENT_SECRET = os.environ.get("STRAVA_CLIENT_SECRET", "ce8eedc1d05808af8cfb2829c833abb5d69dc9f4")
+STRAVA_REFRESH_TOKEN = os.environ.get("STRAVA_REFRESH_TOKEN", "2ac675776dea85002172508cdeb748ec0fe1637c")
+GROQ_API_KEY         = os.environ.get("GROQ_API_KEY",         "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")
 
 def get_access_token():
     r = requests.post("https://www.strava.com/oauth/token", data={
@@ -45,8 +46,7 @@ def classify_zone(avg_hr):
         if bounds[i] <= avg_hr < bounds[i+1]: return i+1
     return 5
 
-def ask_groq_full(activities):
-    """Returns JSON with per-workout insights + weekly summary + next workout rec."""
+def ask_groq_full(activities, goals=None):
     lines = []
     for i, a in enumerate(activities):
         sport    = a.get("sport_type","Unknown")
@@ -56,28 +56,41 @@ def ask_groq_full(activities):
         pace     = round(duration/distance,2) if distance>0 else "N/A"
         lines.append(f'{i}. [{a.get("start_date_local","")[:10]}] {sport} "{a.get("name","")}" | {distance}km {duration}min pace:{pace} HR:{avg_hr}')
 
+    goals_text = ""
+    if goals:
+        goal_parts = []
+        if goals.get("raceDate") and goals.get("raceDist"): goal_parts.append(f"Next race: {goals['raceDist']} on {goals['raceDate']} (goal: {goals.get('raceTime','')})")
+        if goals.get("weeklyKm"): goal_parts.append(f"Weekly km goal: {goals['weeklyKm']}km")
+        if goals.get("vo2Target"): goal_parts.append(f"VO2 max target: {goals['vo2Target']} (current: {goals.get('vo2Current','')})")
+        if goals.get("pr5kGoal"): goal_parts.append(f"5K goal: {goals['pr5kGoal']} (current PR: {goals.get('pr5kCur','')})")
+        if goals.get("pr10kGoal"): goal_parts.append(f"10K goal: {goals['pr10kGoal']} (current PR: {goals.get('pr10kCur','')})")
+        if goals.get("pr21kGoal"): goal_parts.append(f"Half marathon goal: {goals['pr21kGoal']}")
+        if goals.get("pr42kGoal"): goal_parts.append(f"Marathon goal: {goals['pr42kGoal']}")
+        if goal_parts: goals_text = "\n\nAthlete's goals:\n" + "\n".join(goal_parts)
+
     client = Groq(api_key=GROQ_API_KEY)
-    prompt = f"""Analyze these Strava workouts:
+    prompt = f"""Analyze these Strava workouts:{goals_text}
 
 {chr(10).join(lines)}
 
 HR Zones: Z1<124, Z2 124-154(Endurance), Z3 154-169(Tempo), Z4 169-184(Threshold), Z5 185+(Max)
 
-Return ONLY valid JSON, no markdown, no explanation:
+Return ONLY valid JSON, no markdown, no extra text:
 {{
   "workouts": [
     {{
       "index": 0,
-      "highlight": "one sentence on what the athlete did well in this specific workout — never use any names, use 'you' instead",
-      "description": "2 sentence description of this workout and its training value — use 'you' not any names",
-      "comparison": "one sentence comparing this workout to others in the list — use 'you' not any names"
+      "highlight": "one sentence on what was done well — use 'you'",
+      "description": "2 sentence description of this workout and training value — use 'you'",
+      "comparison": "one sentence comparing to other workouts — use 'you'"
     }}
   ],
-  "weekly_summary": "2-3 sentence summary of the week's training pattern and consistency — use 'you' not any names",
+  "weekly_summary": "2-3 sentences on training pattern{' and progress toward goals' if goals_text else ''} — use 'you'",
+  "analysis": "3-4 paragraph coaching analysis{' referencing goals' if goals_text else ''} — use 'you'",
   "next_workout": {{
-    "type": "Run/Walk/WeightTraining",
+    "type": "Run",
     "title": "short workout name",
-    "description": "3-4 sentence detailed recommendation for the next workout based on what has been done this week. Use 'you'. Include specific duration, intensity, and why."
+    "description": "3-4 sentences on what to do next and why — use 'you'"
   }}
 }}"""
 
@@ -88,7 +101,6 @@ Return ONLY valid JSON, no markdown, no explanation:
     )
     raw = response.choices[0].message.content
     raw = raw.replace("```json","").replace("```","").strip()
-    # Try to extract JSON if there's extra text around it
     start = raw.find('{')
     end   = raw.rfind('}') + 1
     if start >= 0 and end > start:
@@ -114,9 +126,17 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.path == "/analyze":
             try:
+                length = int(self.headers.get("Content-Length", 0))
+                body   = self.rfile.read(length) if length else b'{}'
+                try:
+                    req_data = json.loads(body)
+                    goals = req_data.get("goals", {})
+                except:
+                    goals = {}
+
                 token      = get_access_token()
                 activities = get_activities(token, 15)
-                ai_data    = ask_groq_full(activities)
+                ai_data    = ask_groq_full(activities, goals)
 
                 activity_list = []
                 for i, a in enumerate(activities):
@@ -124,37 +144,35 @@ class Handler(BaseHTTPRequestHandler):
                     buckets = []
                     if avg_hr:
                         buckets = get_activity_zones(token, a["id"])
-
                     wi = next((w for w in ai_data.get("workouts",[]) if w.get("index")==i), {})
-
                     activity_list.append({
-                        "id":         a["id"],
-                        "date":       a.get("start_date_local","")[:10],
-                        "name":       a.get("name","Unknown"),
-                        "sport":      a.get("sport_type","Unknown"),
-                        "distance":   round(a.get("distance",0)/1000,2),
-                        "duration":   round(a.get("moving_time",0)/60,1),
-                        "avg_hr":     avg_hr,
-                        "max_hr":     a.get("max_heartrate"),
-                        "zone":       classify_zone(avg_hr),
-                        "buckets":    buckets,
-                        "highlight":  wi.get("highlight",""),
+                        "id":          a["id"],
+                        "date":        a.get("start_date_local","")[:10],
+                        "name":        a.get("name","Unknown"),
+                        "sport":       a.get("sport_type","Unknown"),
+                        "distance":    round(a.get("distance",0)/1000,2),
+                        "duration":    round(a.get("moving_time",0)/60,1),
+                        "avg_hr":      avg_hr,
+                        "max_hr":      a.get("max_heartrate"),
+                        "zone":        classify_zone(avg_hr),
+                        "buckets":     buckets,
+                        "highlight":   wi.get("highlight",""),
                         "description": wi.get("description",""),
-                        "comparison": wi.get("comparison",""),
+                        "comparison":  wi.get("comparison",""),
                     })
 
                 runs = [a for a in activities if a.get("sport_type")=="Run"]
                 wts  = [a for a in activities if a.get("sport_type")=="WeightTraining"]
-
                 result = {
                     "success":        True,
                     "activities":     activity_list,
                     "weekly_summary": ai_data.get("weekly_summary",""),
+                    "analysis":       ai_data.get("analysis",""),
                     "next_workout":   ai_data.get("next_workout",{}),
                     "stats": {
-                        "total_runs": len(runs),
-                        "total_km":   round(sum(a.get("distance",0) for a in runs)/1000,1),
-                        "activities": len(activities),
+                        "total_runs":      len(runs),
+                        "total_km":        round(sum(a.get("distance",0) for a in runs)/1000,1),
+                        "activities":      len(activities),
                         "weight_sessions": len(wts),
                     }
                 }
@@ -172,13 +190,12 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     import socket
+    port = int(os.environ.get("PORT", 8080))
     try: local_ip = socket.gethostbyname(socket.gethostname())
     except: local_ip = "localhost"
-    port = 8080
     print(f"\n🚴 TrainAI Server v8")
     print(f"─"*40)
-    print(f"✅ Server running!")
-    print(f"📱 Phone: http://{local_ip}:{port}")
-    print(f"💻 Mac:   http://localhost:{port}")
+    print(f"✅ Running on port {port}")
+    print(f"📱 Local: http://{local_ip}:{port}")
     print(f"─"*40)
     HTTPServer(("0.0.0.0", port), Handler).serve_forever()
