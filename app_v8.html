@@ -226,14 +226,23 @@ function estimateZones(avgHr, durationMins){
   if(!avgHr||!durationMins) return null;
   const z=getZone(avgHr);
   const zmin=ZB[z], zmax=ZB[z+1]<500?ZB[z+1]:ZB[z]+20;
-  const pos=(avgHr-zmin)/(zmax-zmin);
+  const pos=(avgHr-zmin)/(zmax-zmin); // 0=bottom, 1=top of zone
+
+  // How far is avgHr from the nearest zone boundary (0=at edge, 0.5=middle)
+  const distFromEdge = Math.min(pos, 1-pos);
+
+  // The further from a boundary, the more time stays in main zone
+  // Low HR (e.g. 84bpm in Z1 at pos=0.68) stays almost entirely in Z1
+  const spillFactor = distFromEdge * 0.3; // max 15% spill at zone edges
+  const mainW = 1.0 - spillFactor * 2;
+  const sDn = spillFactor * (1-pos);
+  const sUp = spillFactor * pos;
+
   const w=[0,0,0,0,0];
-  const mainW=0.75+Math.abs(pos-0.5)*0.1;
-  const rem=1-mainW;
-  const sDn=rem*(1-pos), sUp=rem*pos;
   w[z]=mainW;
   if(z>0) w[z-1]+=sDn; else w[z]+=sDn;
   if(z<4) w[z+1]+=sUp; else w[z]+=sUp;
+
   const secs=durationMins*60;
   return w.map(v=>Math.round(v*secs));
 }
