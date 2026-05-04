@@ -39,6 +39,44 @@ def get_activity_zones(token, activity_id):
                 return z.get("distribution_buckets", [])
     return []
 
+def get_best_efforts(token):
+    """Fetch best efforts from recent runs via activity detail endpoint."""
+    # Get recent runs
+    r = requests.get("https://www.strava.com/api/v3/athlete/activities",
+                     headers={"Authorization": f"Bearer {token}"},
+                     params={"per_page": 30})
+    if r.status_code != 200:
+        return []
+    activities = r.json()
+    runs = [a for a in activities if a.get("sport_type") == "Run"]
+
+    # Collect best efforts across all recent runs
+    efforts_map = {}  # distance_name -> best effort
+    for run in runs[:10]:  # limit to 10 runs to avoid rate limits
+        detail = requests.get(
+            f"https://www.strava.com/api/v3/activities/{run['id']}",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        if detail.status_code != 200:
+            continue
+        data = detail.json()
+        for effort in data.get("best_efforts", []):
+            name = effort.get("name", "")
+            elapsed = effort.get("elapsed_time", 0)
+            date = effort.get("start_date_local", "")[:10]
+            dist = effort.get("distance", 0)
+            # Keep only the fastest for each distance
+            if name not in efforts_map or elapsed < efforts_map[name]["elapsed_time"]:
+                efforts_map[name] = {
+                    "name": name,
+                    "elapsed_time": elapsed,
+                    "distance": dist,
+                    "date": date,
+                    "activity_id": run["id"],
+                    "activity_name": run.get("name", ""),
+                }
+    return list(efforts_map.values())
+
 def classify_zone(avg_hr):
     if not avg_hr: return None
     bounds = [0,124,154,169,184,999]
@@ -163,12 +201,20 @@ class Handler(BaseHTTPRequestHandler):
 
                 runs = [a for a in activities if a.get("sport_type")=="Run"]
                 wts  = [a for a in activities if a.get("sport_type")=="WeightTraining"]
+
+                # Fetch real best efforts from Strava
+                try:
+                    best_efforts = get_best_efforts(token)
+                except:
+                    best_efforts = []
+
                 result = {
                     "success":        True,
                     "activities":     activity_list,
                     "weekly_summary": ai_data.get("weekly_summary",""),
                     "analysis":       ai_data.get("analysis",""),
                     "next_workout":   ai_data.get("next_workout",{}),
+                    "best_efforts":   best_efforts,
                     "stats": {
                         "total_runs":      len(runs),
                         "total_km":        round(sum(a.get("distance",0) for a in runs)/1000,1),

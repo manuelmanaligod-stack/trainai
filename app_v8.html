@@ -379,7 +379,7 @@ const WI={Run:'🏃',Walk:'🚶',WeightTraining:'🏋️',Ride:'🚴',Hike:'🥾
 const WBg={Run:'#fff5f0',Walk:'#f0f5ff',WeightTraining:'#f0fff8',Ride:'#fffbf0'};
 const STEPS=['Fetching Strava...','Processing workouts...','Computing HR zones...','Generating AI insights...','Almost done...'];
 
-let allActs=[], allNext={}, allWeekText='', curPeriod='week', curChartType='distance', curSport='Run';
+let allActs=[], allNext={}, allWeekText='', allBestEfforts=[], curPeriod='week', curChartType='distance', curSport='Run';
 let chartInstance=null;
 
 // Load goals from localStorage
@@ -541,85 +541,91 @@ function renderWorkouts(acts){
   }).join('');
 }
 
-// ── BEST EFFORTS ──────────────────────────────────────────────────────────
-function renderEfforts(acts){
+function renderEfforts(acts, bestEfforts){
   const runs=acts.filter(a=>a.sport==='Run'&&a.distance>0&&a.duration>0);
-  const dists=[1,2,5,10,15,21.1,42.2];
-  const distLabels=['1K','2K','5K','10K','15K','Half Marathon','Marathon'];
 
-  // Find fastest pace from recent runs and extrapolate
-  if(runs.length===0){
-    document.getElementById('effortsList').innerHTML='<div style="padding:16px;font-size:12px;color:#bbb;text-align:center;">No run data found</div>';
-    return;
-  }
+  // Use real Strava best efforts if available
+  if(bestEfforts && bestEfforts.length > 0){
+    const order=['400m','1/2 mile','1K','1 mile','2 miles','5K','10K','15K','10 miles','20K','Half-Marathon','Marathon'];
+    const sorted=bestEfforts.sort((a,b)=>order.indexOf(a.name)-order.indexOf(b.name));
 
-  // Best efforts from actual runs
-  const efforts=[];
-  dists.forEach((d,i)=>{
-    // Find runs close to this distance (within 20%)
-    const matching=runs.filter(r=>r.distance>=d*0.8&&r.distance<=d*1.2);
-    if(matching.length>0){
-      const best=matching.reduce((b,r)=>{
-        const pace=r.duration/r.distance;
-        return pace<b.duration/b.distance?r:b;
-      });
-      const pace=best.duration/best.distance;
-      const estTime=pace*d;
-      efforts.push({label:distLabels[i], dist:d, time:estTime, pace, date:best.date, actual:true});
+    document.getElementById('effortsList').innerHTML=sorted.map(e=>{
+      const t=e.elapsed_time;
+      const h=Math.floor(t/3600), m=Math.floor((t%3600)/60), s=t%60;
+      const timeStr=h>0?`${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`:`${m}:${s.toString().padStart(2,'0')}`;
+      const pace=e.distance>0?(e.elapsed_time/60/e.distance*1000):0;
+      const paceStr=pace>0?fmtPace(pace):'';
+      return `<div class="effort-row">
+        <div class="effort-dist">${e.name}</div>
+        <div><div class="effort-time">${timeStr}</div><div class="effort-pace">${paceStr} /km</div></div>
+        <div><div class="effort-date">${e.date}</div><span class="pr-badge">PR</span></div>
+      </div>`;
+    }).join('');
+  } else {
+    // Fallback to estimated from recent runs
+    if(runs.length===0){
+      document.getElementById('effortsList').innerHTML='<div style="padding:16px;font-size:12px;color:#bbb;text-align:center;">No run data found</div>';
     } else {
-      // Extrapolate from best pace using Riegel formula
-      const bestRun=runs.reduce((b,r)=>r.duration/r.distance<b.duration/b.distance?r:b);
-      const basePace=bestRun.duration/bestRun.distance;
-      // Riegel: T2 = T1 * (D2/D1)^1.06
-      const t1=bestRun.duration, d1=bestRun.distance;
-      const estTime=t1*Math.pow(d/d1,1.06);
-      const estPace=estTime/d;
-      efforts.push({label:distLabels[i], dist:d, time:estTime, pace:estPace, date:'predicted', actual:false});
+      const dists=[1,2,5,10,15,21.1,42.2];
+      const distLabels=['1K','2K','5K','10K','15K','Half Marathon','Marathon'];
+      const efforts=dists.map((d,i)=>{
+        const matching=runs.filter(r=>r.distance>=d*0.8&&r.distance<=d*1.2);
+        const bestRun=runs.reduce((b,r)=>r.duration/r.distance<b.duration/b.distance?r:b);
+        if(matching.length>0){
+          const best=matching.reduce((b,r)=>r.duration/r.distance<b.duration/b.distance?r:b);
+          const pace=best.duration/best.distance;
+          return {label:distLabels[i],time:pace*d,pace,date:best.date,actual:true};
+        } else {
+          const t=bestRun.duration*Math.pow(d/bestRun.distance,1.06);
+          return {label:distLabels[i],time:t,pace:t/d,date:'estimated',actual:false};
+        }
+      });
+      document.getElementById('effortsList').innerHTML=efforts.map(e=>{
+        const mins=Math.floor(e.time),secs=Math.round((e.time%1)*60);
+        const h=Math.floor(mins/60),m=mins%60;
+        const timeStr=h>0?`${h}:${m.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`:`${m}:${secs.toString().padStart(2,'0')}`;
+        return `<div class="effort-row"><div class="effort-dist">${e.label}</div><div><div class="effort-time">${timeStr}</div><div class="effort-pace">${fmtPace(e.pace)} /km</div></div><div>${e.actual?`<div class="effort-date">${e.date}</div><span class="pr-badge">PR</span>`:'<div class="effort-date" style="color:#FC4C02">estimated</div>'}</div></div>`;
+      }).join('');
     }
-  });
-
-  document.getElementById('effortsList').innerHTML=efforts.map(e=>{
-    const mins=Math.floor(e.time), secs=Math.round((e.time%1)*60);
-    const h=Math.floor(mins/60), m=mins%60;
-    const timeStr=h>0?`${h}:${m.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`:`${m}:${secs.toString().padStart(2,'0')}`;
-    const paceStr=fmtPace(e.pace);
-    return `<div class="effort-row"><div class="effort-dist">${e.label}</div><div><div class="effort-time">${timeStr}</div><div class="effort-pace">${paceStr} /km</div></div><div>${e.actual?`<div class="effort-date">${e.date}</div><span class="pr-badge">PR</span>`:'<div class="effort-date" style="color:#FC4C02">predicted</div>'}</div></div>`;
-  }).join('');
+  }
 
   // Performance predictions vs goals
   const goals=getGoals();
   const prGoals=[
-    {label:'5K', goalTime:goals.pr5kGoal, dist:5},
-    {label:'10K', goalTime:goals.pr10kGoal, dist:10},
-    {label:'Half', goalTime:goals.pr21kGoal, dist:21.1},
-    {label:'Marathon', goalTime:goals.pr42kGoal, dist:42.2},
+    {label:'5K',goalTime:goals.pr5kGoal,dist:5},
+    {label:'10K',goalTime:goals.pr10kGoal,dist:10},
+    {label:'Half',goalTime:goals.pr21kGoal,dist:21.1},
+    {label:'Marathon',goalTime:goals.pr42kGoal,dist:42.2},
   ];
-
   const bestRun=runs.length>0?runs.reduce((b,r)=>r.duration/r.distance<b.duration/b.distance?r:b):null;
+
+  // Use real best effort for 5K/10K if available
+  function getRealPaceForDist(dist){
+    if(!bestEfforts||bestEfforts.length===0) return null;
+    const nameMap={5:'5K',10:'10K',21.1:'Half-Marathon',42.2:'Marathon'};
+    const effortName=nameMap[dist];
+    const e=bestEfforts.find(e=>e.name===effortName);
+    return e ? (e.elapsed_time/60/e.distance*1000) : null;
+  }
 
   document.getElementById('predList').innerHTML=prGoals.map(g=>{
     if(!bestRun) return '';
-    const basePace=bestRun.duration/bestRun.distance;
-    const predTime=bestRun.duration*Math.pow(g.dist/bestRun.distance,1.06);
-    const predMins=Math.floor(predTime);
-    const predSecs=Math.round((predTime%1)*60);
-    const ph=Math.floor(predMins/60), pm=predMins%60;
+    const realPace=getRealPaceForDist(g.dist);
+    const predTime=realPace
+      ? realPace*g.dist
+      : bestRun.duration*Math.pow(g.dist/bestRun.distance,1.06);
+    const predMins=Math.floor(predTime),predSecs=Math.round((predTime%1)*60);
+    const ph=Math.floor(predMins/60),pm=predMins%60;
     const predStr=ph>0?`${ph}:${pm.toString().padStart(2,'0')}:${predSecs.toString().padStart(2,'0')}`:`${pm}:${predSecs.toString().padStart(2,'0')}`;
-
     let vsHtml='';
     if(g.goalTime){
-      // Parse goal time
       const parts=g.goalTime.split(':').map(Number);
-      let goalSecs=0;
-      if(parts.length===3) goalSecs=parts[0]*3600+parts[1]*60+parts[2];
-      else if(parts.length===2) goalSecs=parts[0]*60+parts[1];
-      const goalMins=goalSecs/60;
-      const diff=predTime-goalMins;
-      if(Math.abs(diff)<0.5) vsHtml=`<span class="pred-vs pred-same">On target</span>`;
-      else if(diff<0) vsHtml=`<span class="pred-vs pred-better">+${Math.abs(diff).toFixed(1)}m ahead of goal</span>`;
-      else vsHtml=`<span class="pred-vs pred-worse">${diff.toFixed(1)}m behind goal</span>`;
+      let goalSecs=parts.length===3?parts[0]*3600+parts[1]*60+parts[2]:parts[0]*60+(parts[1]||0);
+      const diff=predTime-goalSecs/60;
+      if(Math.abs(diff)<0.5) vsHtml=`<span class="pred-vs pred-same">On target ✓</span>`;
+      else if(diff<0) vsHtml=`<span class="pred-vs pred-better">${Math.abs(diff).toFixed(1)}m ahead 🎯</span>`;
+      else vsHtml=`<span class="pred-vs pred-worse">${diff.toFixed(1)}m behind</span>`;
     }
-
     return `<div class="pred-row"><div class="pred-dist">${g.label}</div><div class="pred-time">${predStr}</div>${vsHtml}</div>`;
   }).filter(Boolean).join('') || '<div style="padding:16px;font-size:12px;color:#bbb;text-align:center;">Set PR goals to see predictions vs goals</div>';
 }
@@ -696,7 +702,7 @@ function renderAll(){
   document.getElementById('err').classList.remove('on');
   renderOverview(filtered);
   renderWorkouts(filtered);
-  renderEfforts(allActs.filter(a=>a.sport==='Run'));
+  renderEfforts(allActs.filter(a=>a.sport==='Run'), allBestEfforts);
   if(document.getElementById('tab-charts').style.display!=='none') renderChart();
   document.getElementById('footer').style.display='block';
 }
@@ -729,6 +735,7 @@ async function analyze(){
       allActs=data.activities;
       allNext=data.next_workout||{};
       allWeekText=data.weekly_summary||'';
+      allBestEfforts=data.best_efforts||[];
       document.getElementById('aiBody').innerHTML=mdToHtml(data.analysis||'');
       renderAll();
     } else {
