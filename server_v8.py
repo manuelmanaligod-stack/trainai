@@ -150,7 +150,7 @@ Return ONLY valid JSON, no markdown, no extra text:
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=3000
+        max_tokens=4000
     )
     raw = response.choices[0].message.content
     raw = raw.replace("```json","").replace("```","").strip()
@@ -158,7 +158,22 @@ Return ONLY valid JSON, no markdown, no extra text:
     end   = raw.rfind('}') + 1
     if start >= 0 and end > start:
         raw = raw[start:end]
-    return json.loads(raw)
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        # Try to salvage partial JSON — return safe defaults
+        print(f"JSON parse error. Raw response length: {len(raw)}")
+        print(f"Raw (first 500): {raw[:500]}")
+        # Extract weekly_summary if possible
+        import re
+        summary_match = re.search(r'"weekly_summary"\s*:\s*"([^"]*)"', raw)
+        summary = summary_match.group(1) if summary_match else "Analysis unavailable — try again."
+        return {
+            "workouts": [],
+            "weekly_summary": summary,
+            "analysis": "AI analysis could not be parsed. Please tap Analyze again.",
+            "next_workout": {"type": "Run", "title": "Easy Recovery Run", "description": "Take it easy today with a 30-40 minute easy run at a comfortable pace to recover from recent training."}
+        }
 
 def read_file(path):
     with open(path,"r") as f: return f.read()
