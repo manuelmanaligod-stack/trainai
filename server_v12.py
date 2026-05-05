@@ -47,34 +47,33 @@ def get_activity_zones(token, activity_id):
     return []
 
 def get_best_efforts(token):
-    """Scan ALL runs from Jan 2025 to now for best effort PRs."""
+    """Get best efforts from last 10 runs only to avoid rate limit."""
     all_efforts = {}
-    after_ts = int(datetime(2025, 1, 1).timestamp())
-    page = 1
-    while page <= 10:
-        r = requests.get("https://www.strava.com/api/v3/athlete/activities",
-                         headers={"Authorization": f"Bearer {token}"},
-                         params={"per_page": 30, "page": page, "after": after_ts})
-        if r.status_code != 200: break
-        batch = r.json()
-        if not batch: break
-        runs = [a for a in batch if a.get("sport_type") == "Run"]
-        for run in runs:
-            detail = requests.get(f"https://www.strava.com/api/v3/activities/{run['id']}",
-                                   headers={"Authorization": f"Bearer {token}"})
-            if detail.status_code != 200: continue
-            for effort in detail.json().get("best_efforts", []):
-                name    = effort.get("name", "")
-                elapsed = effort.get("elapsed_time", 0)
-                date    = effort.get("start_date_local", "")[:10]
-                dist    = effort.get("distance", 0)
-                if name not in all_efforts or elapsed < all_efforts[name]["elapsed_time"]:
-                    all_efforts[name] = {
-                        "name": name, "elapsed_time": elapsed,
-                        "distance": dist, "date": date,
-                        "activity": run.get("name", "")
-                    }
-        page += 1
+    # Get recent activities first (newest first, no after filter)
+    r = requests.get("https://www.strava.com/api/v3/athlete/activities",
+                     headers={"Authorization": f"Bearer {token}"},
+                     params={"per_page": 30, "page": 1})
+    if r.status_code != 200:
+        return []
+    activities = r.json()
+    runs = [a for a in activities if a.get("sport_type") == "Run"][:10]  # max 10 runs
+
+    for run in runs:
+        detail = requests.get(f"https://www.strava.com/api/v3/activities/{run['id']}",
+                               headers={"Authorization": f"Bearer {token}"})
+        if detail.status_code != 200:
+            continue
+        for effort in detail.json().get("best_efforts", []):
+            name    = effort.get("name", "")
+            elapsed = effort.get("elapsed_time", 0)
+            date    = effort.get("start_date_local", "")[:10]
+            dist    = effort.get("distance", 0)
+            if name not in all_efforts or elapsed < all_efforts[name]["elapsed_time"]:
+                all_efforts[name] = {
+                    "name": name, "elapsed_time": elapsed,
+                    "distance": dist, "date": date,
+                    "activity": run.get("name", "")
+                }
     return list(all_efforts.values())
 
 def classify_zone(avg_hr):
@@ -176,8 +175,8 @@ class Handler(BaseHTTPRequestHandler):
                 activity_list = []
                 for i, a in enumerate(all_acts):
                     avg_hr  = a.get("average_heartrate")
-                    buckets = get_activity_zones(token, a["id"]) if avg_hr and i < 10 else []
-                    wi      = next((w for w in ai.get("workouts", []) if w.get("index") == i), {})
+                    # Skip zone API call — zones estimated in frontend
+                    wi = next((w for w in ai.get("workouts", []) if w.get("index") == i), {})
                     activity_list.append({
                         "id":          a["id"],
                         "date":        a.get("start_date_local", "")[:10],
@@ -188,7 +187,6 @@ class Handler(BaseHTTPRequestHandler):
                         "avg_hr":      avg_hr,
                         "max_hr":      a.get("max_heartrate"),
                         "zone":        classify_zone(avg_hr),
-                        "buckets":     buckets,
                         "highlight":   wi.get("highlight", ""),
                         "description": wi.get("description", ""),
                         "comparison":  wi.get("comparison", ""),
