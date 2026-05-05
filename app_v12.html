@@ -204,6 +204,7 @@ canvas{width:100%!important;}
   <div class="main-nav">
     <div class="mnav active" onclick="showTab('overview',this)">Overview</div>
     <div class="mnav" onclick="showTab('workouts',this)">Workouts</div>
+    <div class="mnav" onclick="showTab('fitness',this)">Fitness</div>
     <div class="mnav" onclick="showTab('goals',this)">Goals</div>
     <div class="mnav" onclick="showTab('efforts',this)">Best Efforts</div>
     <div class="mnav" onclick="showTab('charts',this)">Charts</div>
@@ -284,6 +285,73 @@ canvas{width:100%!important;}
     <button class="pg-btn" id="pgPrev" onclick="pgChange(-1)">← Prev</button>
     <span class="pg-info" id="pgInfo"></span>
     <button class="pg-btn" id="pgNext" onclick="pgChange(1)">Next →</button>
+  </div>
+</div>
+
+<!-- ═══ FITNESS ═══ -->
+<div id="tab-fitness" style="display:none">
+  <!-- Streak -->
+  <div class="card" style="margin-top:10px;">
+    <div class="card-hdr"><div class="card-title">Activity Streak</div></div>
+    <div style="display:flex;gap:0;padding:14px 13px;">
+      <div style="flex:1;text-align:center;">
+        <div style="font-size:36px;font-weight:700;color:#FC4C02;" id="curStreak">—</div>
+        <div style="font-size:10px;color:#bbb;text-transform:uppercase;letter-spacing:.7px;margin-top:2px;">Current streak</div>
+      </div>
+      <div style="width:1px;background:#f0f0f0;margin:0 8px;"></div>
+      <div style="flex:1;text-align:center;">
+        <div style="font-size:36px;font-weight:700;color:#1a1a1a;" id="longStreak">—</div>
+        <div style="font-size:10px;color:#bbb;text-transform:uppercase;letter-spacing:.7px;margin-top:2px;">Longest streak</div>
+      </div>
+      <div style="width:1px;background:#f0f0f0;margin:0 8px;"></div>
+      <div style="flex:1;text-align:center;">
+        <div style="font-size:36px;font-weight:700;color:#1a1a1a;" id="totalDays">—</div>
+        <div style="font-size:10px;color:#bbb;text-transform:uppercase;letter-spacing:.7px;margin-top:2px;">Active days</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HR Efficiency -->
+  <div class="card" style="margin-top:8px;">
+    <div class="card-hdr"><div class="card-title">Heart Rate Efficiency</div><div class="card-badge">pace vs HR</div></div>
+    <div style="padding:10px 13px 4px;font-size:11px;color:#888;line-height:1.5;">HR Efficiency = how fast you run per heartbeat. Higher = better aerobic fitness.</div>
+    <div id="hrEffRows" style="padding:0 13px 12px;"></div>
+  </div>
+
+  <!-- Training Load (CTL/ATL) -->
+  <div class="card" style="margin-top:8px;">
+    <div class="card-hdr"><div class="card-title">Training Load</div><div class="card-badge">last 6 weeks</div></div>
+    <div style="padding:10px 13px;">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;">
+        <div style="text-align:center;background:#f9f9f9;border-radius:8px;padding:10px 4px;">
+          <div style="font-size:22px;font-weight:700;color:#5ac8fa;" id="ctlVal">—</div>
+          <div style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;">Fitness (CTL)</div>
+        </div>
+        <div style="text-align:center;background:#f9f9f9;border-radius:8px;padding:10px 4px;">
+          <div style="font-size:22px;font-weight:700;color:#ff9500;" id="atlVal">—</div>
+          <div style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;">Fatigue (ATL)</div>
+        </div>
+        <div style="text-align:center;background:#f9f9f9;border-radius:8px;padding:10px 4px;">
+          <div style="font-size:22px;font-weight:700;" id="tsbVal">—</div>
+          <div style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;">Form (TSB)</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:#888;" id="tsbMsg"></div>
+    </div>
+  </div>
+
+  <!-- Weekly Volume Last 8 Weeks -->
+  <div class="card" style="margin-top:8px;">
+    <div class="card-hdr"><div class="card-title">Weekly Volume</div><div class="card-badge">last 8 weeks</div></div>
+    <div style="padding:13px;">
+      <canvas id="volChart" height="160"></canvas>
+    </div>
+  </div>
+
+  <!-- Zone Distribution This Month -->
+  <div class="card" style="margin-top:8px;">
+    <div class="card-hdr"><div class="card-title">Zone Distribution</div><div class="card-badge">this month</div></div>
+    <div id="zoneDist" style="padding:10px 13px 13px;"></div>
   </div>
 </div>
 
@@ -406,8 +474,24 @@ function fmtMins(t){const tot=Math.round(t*60),h=Math.floor(tot/3600),m=Math.flo
 function fmtT2(s){if(!s||s<30)return '';const h=Math.floor(s/3600),m=Math.floor((s%3600)/60);return h>0?`${h}h ${m}m`:`${m}m`;}
 function fmtPace(v){const m=Math.floor(v),s=Math.round((v-m)*60);return `${m}:${s.toString().padStart(2,'0')}`;}
 function getZone(hr){if(!hr)return -1;for(let i=0;i<5;i++)if(hr>=ZB[i]&&hr<ZB[i+1])return i;return 4;}
-function getMon(){const n=new Date(),d=n.getDay(),diff=d===0?-6:1-d,m=new Date(n);m.setDate(n.getDate()+diff);m.setHours(0,0,0,0);return m;}
-function getMonthStart(){const n=new Date();return new Date(n.getFullYear(),n.getMonth(),1);}
+function getMon(){
+  // Returns Monday 00:00:00 local time as a date string "YYYY-MM-DD"
+  const now=new Date();
+  const day=now.getDay(); // 0=Sun
+  const diff=day===0?-6:1-day;
+  const mon=new Date(now);
+  mon.setDate(now.getDate()+diff);
+  return mon.toISOString().slice(0,10); // "2026-05-04"
+}
+function getSun(){
+  const mon=getMon();
+  const d=new Date(mon);d.setDate(d.getDate()+6);
+  return d.toISOString().slice(0,10);
+}
+function getMonthStart(){
+  const n=new Date();
+  return new Date(n.getFullYear(),n.getMonth(),1).toISOString().slice(0,10);
+}
 function estimateZones(hr,dur,sport){
   if(!hr||!dur)return null;
   if(sport==='Walk')return [Math.round(dur*60),0,0,0,0];
@@ -427,20 +511,24 @@ function showTab(name,el){
   document.querySelectorAll('.mnav').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
   if(name==='charts'&&allActs.length>0)renderChart();
+  if(name==='fitness'&&allActs.length>0)renderFitness();
 }
 
 // ── OVERVIEW ─────────────────────────────────────────────────────────
 function renderOverview(){
-  const now=new Date(), mon=getMon();
-  const thisWeek=allActs.filter(a=>new Date(a.date)>=mon);
+  const now=new Date(), monStr=getMon(), sunStr=getSun();
+  // Filter this week using string comparison (no timezone issues)
+  const thisWeek=allActs.filter(a=>a.date>=monStr && a.date<=sunStr);
   const wRuns=thisWeek.filter(a=>a.sport==='Run');
   const wKm=wRuns.reduce((s,a)=>s+a.distance,0);
   const goals=getGoals();
 
-  // Week label
-  const monStr=mon.toLocaleDateString('en-US',{month:'short',day:'numeric'});
-  const todStr=now.toLocaleDateString('en-US',{month:'short',day:'numeric'});
-  document.getElementById('goalWeekLabel').textContent=`${monStr} – ${todStr}`;
+  // Week label Mon May 5 – Sun May 10
+  const monDate=new Date(monStr+'T12:00:00');
+  const sunDate=new Date(sunStr+'T12:00:00');
+  const fmt={month:'short',day:'numeric'};
+  document.getElementById('goalWeekLabel').textContent=
+    `${monDate.toLocaleDateString('en-US',fmt)} – ${sunDate.toLocaleDateString('en-US',fmt)}`;
 
   // Goal rows
   const rows=[];
@@ -450,10 +538,15 @@ function renderOverview(){
   }
   if(goals['weekly-runs']&&parseInt(goals['weekly-runs'])>0){
     const t=parseInt(goals['weekly-runs']),pct=Math.min(wRuns.length/t*100,100),done=pct>=100;
-    rows.push(`<div class="gp-row"><div class="gp-top"><span class="gp-name">📅 Weekly runs</span><span class="gp-val">${wRuns.length} / ${t}</span></div><div class="gp-track"><div class="gp-fill${done?' done':''}" style="width:${pct}%"></div></div></div>`);
+    rows.push(`<div class="gp-row"><div class="gp-top"><span class="gp-name">📅 Weekly runs</span><span class="gp-val">${wRuns.length} / ${t} runs</span></div><div class="gp-track"><div class="gp-fill${done?' done':''}" style="width:${pct}%"></div></div></div>`);
+  }
+  // Weekly minutes
+  const wMins=Math.round(thisWeek.reduce((s,a)=>s+a.duration,0));
+  if(wMins>0){
+    rows.push(`<div class="gp-row"><div class="gp-top"><span class="gp-name">⏱️ Active this week</span><span class="gp-val">${wMins} min · ${thisWeek.length} workouts</span></div></div>`);
   }
   if(goals['race-date']&&goals['race-dist']){
-    const rd=new Date(goals['race-date']),days=Math.ceil((rd-now)/86400000);
+    const rd=new Date(goals['race-date']+'T12:00:00'),days=Math.ceil((rd-now)/86400000);
     const ds=rd.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
     if(days>0) rows.push(`<div class="gp-row"><div class="gp-top"><span class="gp-name">🏁 ${goals['race-dist']}</span><span class="gp-val">${days} days away</span></div><div class="gp-sub">${ds}${goals['race-time']?' · Goal: '+goals['race-time']:''}</div></div>`);
     else if(days===0) rows.push(`<div class="gp-row"><div class="gp-top"><span class="gp-name">🏁 ${goals['race-dist']}</span><span class="gp-val" style="color:#4cd964">RACE DAY! 🎉</span></div></div>`);
@@ -508,8 +601,8 @@ function setHrTab(tab,el){
 function renderHrZones(tab){
   let acts, badge;
   if(tab==='last10'){acts=allActs.slice(0,10);badge='Last 10 workouts';}
-  else if(tab==='week'){const d=new Date();d.setDate(d.getDate()-7);acts=allActs.filter(a=>new Date(a.date)>=d);badge='Past 7 days';}
-  else if(tab==='month'){acts=allActs.filter(a=>new Date(a.date)>=getMonthStart());badge='This month';}
+  else if(tab==='week'){const d=new Date();d.setDate(d.getDate()-7);const ds=d.toISOString().slice(0,10);acts=allActs.filter(a=>a.date>=ds);badge='Past 7 days';}
+  else if(tab==='month'){acts=allActs.filter(a=>a.date>=getMonthStart());badge='This month';}
   else if(tab.startsWith('m_')){
     const ym=tab.slice(2);acts=allActs.filter(a=>a.date&&a.date.startsWith(ym));
     const[y,m]=ym.split('-');badge=new Date(y,m-1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
@@ -688,8 +781,8 @@ function renderChart(){
   let sa=allActs.filter(a=>a.sport===cSport);
   // Filter by time — newest to oldest
   const now=new Date();
-  if(cTime==='week'){const d=getMon();sa=sa.filter(a=>new Date(a.date)>=d);}
-  else if(cTime==='month'){sa=sa.filter(a=>new Date(a.date)>=getMonthStart());}
+  if(cTime==='week'){const d=getMon();sa=sa.filter(a=>a.date>=d&&a.date<=getSun());}
+  else if(cTime==='month'){sa=sa.filter(a=>a.date>=getMonthStart());}
   else if(cTime==='y2026'){sa=sa.filter(a=>a.date.startsWith('2026'));}
   else if(cTime==='y2025'){sa=sa.filter(a=>a.date.startsWith('2025'));}
   // all = show everything newest to oldest
@@ -763,6 +856,7 @@ async function analyze(){
       renderOverview();
       renderMonthBlocks();
       renderEfforts();
+      renderFitness();
     } else {
       document.getElementById('errBox').textContent=data.error;
       document.getElementById('errBox').classList.add('on');
@@ -776,6 +870,143 @@ async function analyze(){
     document.getElementById('errBox').classList.add('on');
   }
   btn.disabled=false;
+}
+
+// ── FITNESS ───────────────────────────────────────────────────────────
+function renderFitness(){
+  const runs=allActs.filter(a=>a.sport==='Run'&&a.distance>0);
+
+  // ── Streaks ────────────────────────────────────────────────────────
+  const actDates=[...new Set(allActs.map(a=>a.date))].sort().reverse();
+  let curS=0,longestS=0,tempS=1;
+  const today=new Date().toISOString().slice(0,10);
+  const yest=new Date(Date.now()-86400000).toISOString().slice(0,10);
+  if(actDates.length>0){
+    // Current streak
+    let d=actDates[0]===today||actDates[0]===yest?actDates[0]:null;
+    if(d){
+      curS=1;
+      for(let i=1;i<actDates.length;i++){
+        const prev=new Date(d),cur=new Date(actDates[i]);
+        const diff=(prev-cur)/86400000;
+        if(diff===1){curS++;d=actDates[i];}else break;
+      }
+    }
+    // Longest streak
+    tempS=1;
+    for(let i=1;i<actDates.length;i++){
+      const diff=(new Date(actDates[i-1])-new Date(actDates[i]))/86400000;
+      if(diff===1){tempS++;longestS=Math.max(longestS,tempS);}else{longestS=Math.max(longestS,tempS);tempS=1;}
+    }
+    longestS=Math.max(longestS,tempS);
+  }
+  document.getElementById('curStreak').textContent=curS+'d';
+  document.getElementById('longStreak').textContent=longestS+'d';
+  document.getElementById('totalDays').textContent=actDates.length;
+
+  // ── HR Efficiency ─────────────────────────────────────────────────
+  // Efficiency = (speed in m/min) / avg_hr — higher is better
+  const efRuns=runs.filter(a=>a.avg_hr&&a.avg_hr>0).slice(0,8);
+  if(efRuns.length>0){
+    const efData=efRuns.map(a=>{
+      const speedMpm=(a.distance*1000)/(a.duration*60)*60; // m/min
+      const eff=(speedMpm/a.avg_hr*100); // scaled
+      return{date:a.date,name:a.name,eff:eff.toFixed(1),hr:Math.round(a.avg_hr),pace:fmtPace(a.duration/a.distance)};
+    });
+    const maxEff=Math.max(...efData.map(e=>parseFloat(e.eff)));
+    document.getElementById('hrEffRows').innerHTML=efData.map(e=>{
+      const pct=Math.round(parseFloat(e.eff)/maxEff*100);
+      const clr=pct>85?'#4cd964':pct>65?'#ffcc00':'#ff9500';
+      return `<div style="margin-bottom:9px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+          <span style="font-size:11px;color:#444;font-weight:500;">${e.name.length>22?e.name.slice(0,22)+'…':e.name}</span>
+          <span style="font-size:11px;color:${clr};font-weight:600;">${e.eff}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="flex:1;height:6px;background:#f0ede8;border-radius:3px;overflow:hidden;">
+            <div style="width:${pct}%;height:100%;background:${clr};border-radius:3px;"></div>
+          </div>
+          <span style="font-size:10px;color:#bbb;width:80px;text-align:right;">${e.pace}/km · ${e.hr}bpm</span>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    document.getElementById('hrEffRows').innerHTML='<div style="font-size:12px;color:#bbb;text-align:center;padding:8px 0;">No HR data available</div>';
+  }
+
+  // ── Training Load CTL/ATL/TSB ──────────────────────────────────────
+  // Simple approximation: TSS = (duration_mins * avg_hr / threshold_hr)^2 * 100
+  const thresholdHR = 169; // Z4 bottom
+  function getTSS(a){
+    if(!a.avg_hr||!a.duration) return a.duration*0.5; // fallback
+    const ef=a.avg_hr/thresholdHR;
+    return Math.round(a.duration*ef*ef);
+  }
+  // Build daily TSS map
+  const tssMap={};
+  allActs.forEach(a=>{tssMap[a.date]=(tssMap[a.date]||0)+getTSS(a);});
+  // CTL = 42-day exp moving avg, ATL = 7-day
+  let ctl=0,atl=0;
+  const days=[...Array(90)].map((_,i)=>{
+    const d=new Date();d.setDate(d.getDate()-89+i);return d.toISOString().slice(0,10);
+  });
+  days.forEach(d=>{
+    const tss=tssMap[d]||0;
+    ctl=ctl+(tss-ctl)*(1-Math.exp(-1/42));
+    atl=atl+(tss-atl)*(1-Math.exp(-1/7));
+  });
+  const tsb=Math.round(ctl-atl);
+  const ctlR=Math.round(ctl),atlR=Math.round(atl);
+  document.getElementById('ctlVal').textContent=ctlR;
+  document.getElementById('atlVal').textContent=atlR;
+  document.getElementById('tsbVal').textContent=(tsb>=0?'+':'')+tsb;
+  document.getElementById('tsbVal').style.color=tsb>5?'#4cd964':tsb>-10?'#ffcc00':'#ff3b30';
+  const msg=tsb>10?'Fresh — good day for a hard workout!':tsb>-5?'Balanced — maintain current load':tsb>-20?'Tired — consider a recovery run':'Fatigued — rest day recommended';
+  document.getElementById('tsbMsg').textContent=msg;
+
+  // ── Weekly Volume Chart ────────────────────────────────────────────
+  const weeks=[];
+  for(let w=7;w>=0;w--){
+    const wMon=new Date();const day=wMon.getDay(),diff=day===0?-6:1-day;
+    wMon.setDate(wMon.getDate()+diff-w*7);wMon.setHours(0,0,0,0);
+    const wSun=new Date(wMon);wSun.setDate(wMon.getDate()+6);
+    const wMonStr=wMon.toISOString().slice(0,10),wSunStr=wSun.toISOString().slice(0,10);
+    const wActs=allActs.filter(a=>a.date>=wMonStr&&a.date<=wSunStr);
+    const wKm=wActs.filter(a=>a.sport==='Run').reduce((s,a)=>s+a.distance,0);
+    const label=wMon.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    weeks.push({label,km:+wKm.toFixed(1)});
+  }
+  if(window._volChart) window._volChart.destroy();
+  window._volChart=new Chart(document.getElementById('volChart').getContext('2d'),{
+    type:'bar',
+    data:{
+      labels:weeks.map(w=>w.label),
+      datasets:[{data:weeks.map(w=>w.km),backgroundColor:weeks.map((_,i)=>i===7?'#FC4C02':'#FC4C0244'),borderRadius:5,borderSkipped:false}]
+    },
+    options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.parsed.y} km`}}},scales:{x:{grid:{display:false},ticks:{font:{size:9},color:'#bbb'}},y:{grid:{color:'#f5f5f5'},ticks:{font:{size:9},color:'#bbb'}}}},
+    plugins:[{id:'barLabels',afterDatasetsDraw(chart){const ctx=chart.ctx;chart.data.datasets.forEach((_,i)=>{const meta=chart.getDatasetMeta(i);meta.data.forEach((bar,j)=>{const v=chart.data.datasets[i].data[j];if(!v)return;ctx.fillStyle='#555';ctx.font='bold 9px DM Sans,sans-serif';ctx.textAlign='center';ctx.fillText(v,bar.x,bar.y-5);});});}}]
+  });
+
+  // ── Zone Distribution This Month ──────────────────────────────────
+  const mActs=allActs.filter(a=>a.date>=getMonthStart());
+  const mTotals=[0,0,0,0,0];
+  mActs.forEach(a=>{const e=estimateZones(a.avg_hr,a.duration,a.sport);if(e)e.forEach((t,i)=>mTotals[i]+=t);});
+  const mGrand=mTotals.reduce((s,t)=>s+t,0)||1;
+  document.getElementById('zoneDist').innerHTML=
+    `<div style="font-size:10px;font-weight:600;color:#bbb;text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;">Time in each zone this month</div>`+
+    mTotals.map((t,i)=>{
+      const pct=Math.round(t/mGrand*100),bw=Math.round(t/Math.max(...mTotals,1)*100);
+      return `<div style="display:flex;align-items:center;gap:7px;padding:3px 0;">
+        <div style="width:8px;height:8px;border-radius:50%;background:${ZC[i]};flex-shrink:0;"></div>
+        <div style="font-size:11px;color:#888;width:70px;flex-shrink:0;">Z${i+1} ${ZN[i]}</div>
+        <div style="font-size:10px;color:#ccc;width:60px;flex-shrink:0;">${ZR[i]} bpm</div>
+        <div style="flex:1;height:9px;background:#f0ede8;border-radius:5px;overflow:hidden;">
+          <div style="width:${bw}%;height:100%;background:${ZC[i]};border-radius:5px;"></div>
+        </div>
+        <div style="font-size:11px;font-weight:500;color:#444;width:36px;text-align:right;">${fmtT2(t)}</div>
+        <div style="font-size:10px;color:#bbb;width:26px;text-align:right;">${pct}%</div>
+      </div>`;
+    }).join('');
 }
 
 loadGoals();
