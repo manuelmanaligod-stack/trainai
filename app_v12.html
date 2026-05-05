@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="TrainAI">
+<title>TrainAI</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{background:#f5f5f0;color:#1a1a1a;font-family:'DM Sans',sans-serif;min-height:100vh;}
+.page{max-width:430px;margin:0 auto;padding-bottom:100px;}
+
+.hdr{background:#fff;padding:max(env(safe-area-inset-top),20px) 16px 0;border-bottom:1px solid #ebebeb;position:sticky;top:0;z-index:20;}
+.hdr-top{display:flex;align-items:center;justify-content:space-between;padding-bottom:10px;}
+.logo{display:flex;align-items:center;gap:8px;}
+.logo-dot{width:8px;height:8px;border-radius:50%;background:#FC4C02;}
+.logo-name{font-size:15px;font-weight:600;}
+.logo-name span{color:#FC4C02;}
+.logo-sub{font-size:10px;color:#bbb;margin-top:1px;}
+.go-btn{background:#FC4C02;color:#fff;border:none;border-radius:16px;padding:7px 16px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;}
+.go-btn:disabled{opacity:.5;cursor:not-allowed;}
+.main-nav{display:flex;overflow-x:auto;scrollbar-width:none;}
+.main-nav::-webkit-scrollbar{display:none;}
+.mnav{flex-shrink:0;padding:9px 13px 10px;font-size:12px;font-weight:500;color:#aaa;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;}
+.mnav.active{color:#FC4C02;border-bottom-color:#FC4C02;}
+
+.pbar{height:2px;background:#f0ede8;display:none;}
+.pbar.on{display:block;}
+.pbar-fill{height:100%;background:#FC4C02;animation:pb 1.8s ease-in-out infinite;}
+@keyframes pb{0%{width:0%;margin-left:0}50%{width:60%;margin-left:20%}100%{width:0%;margin-left:100%}}
+.pmsg{text-align:center;padding:8px;font-size:11px;color:#bbb;display:none;}
+.pmsg.on{display:block;}
+.err-box{margin:10px 14px;background:#fff5f5;border:1px solid #ffd0d0;border-radius:10px;padding:10px 13px;font-size:12px;color:#c0392b;display:none;}
+.err-box.on{display:block;}
+
+/* Cards */
+.card{background:#fff;border:1px solid #ebebeb;border-radius:14px;margin:10px 14px 0;overflow:hidden;}
+.card-hdr{padding:11px 13px 9px;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;justify-content:space-between;}
+.card-title{font-size:10px;font-weight:600;color:#bbb;text-transform:uppercase;letter-spacing:.8px;}
+.card-badge{font-size:10px;color:#FC4C02;font-weight:500;}
+
+/* Sub tabs */
+.stabs{display:flex;overflow-x:auto;scrollbar-width:none;gap:6px;padding:10px 13px 0;}
+.stabs::-webkit-scrollbar{display:none;}
+.stab{flex-shrink:0;padding:5px 11px;border-radius:14px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid #e8e8e8;color:#999;background:#fff;white-space:nowrap;}
+.stab.active{background:#FC4C02;color:#fff;border-color:#FC4C02;}
+
+/* Stats */
+.stats4{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;padding:10px 13px;}
+.s4{text-align:center;background:#f9f9f9;border-radius:8px;padding:8px 3px;}
+.s4v{font-size:17px;font-weight:600;color:#1a1a1a;line-height:1;}
+.s4l{font-size:9px;color:#bbb;margin-top:2px;text-transform:uppercase;letter-spacing:.3px;}
+
+/* Goal progress */
+.gp-wrap{padding:10px 13px 12px;border-top:1px solid #f5f5f5;}
+.gp-lbl{font-size:10px;font-weight:600;color:#bbb;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;}
+.gp-row{margin-bottom:8px;}
+.gp-row:last-child{margin-bottom:0;}
+.gp-top{display:flex;justify-content:space-between;margin-bottom:3px;}
+.gp-name{font-size:12px;color:#444;font-weight:500;}
+.gp-val{font-size:12px;color:#FC4C02;font-weight:500;}
+.gp-sub{font-size:10px;color:#bbb;margin-bottom:3px;}
+.gp-track{height:7px;background:#f0ede8;border-radius:4px;overflow:hidden;}
+.gp-fill{height:100%;background:#FC4C02;border-radius:4px;transition:width .5s;}
+.gp-fill.done{background:#4cd964;}
+
+/* Summary / AI text */
+.text-block{padding:10px 13px 12px;font-size:12px;color:#555;line-height:1.7;border-top:1px solid #f5f5f5;}
+
+/* HR Zones */
+.zones-wrap{padding:10px 13px 13px;}
+.zones-lbl{font-size:10px;font-weight:600;color:#bbb;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;}
+.zrow{display:flex;align-items:center;gap:7px;padding:3px 0;}
+.zr-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.zr-name{font-size:11px;color:#888;width:70px;flex-shrink:0;}
+.zr-range{font-size:10px;color:#ccc;width:60px;flex-shrink:0;}
+.zr-track{flex:1;height:9px;background:#f0ede8;border-radius:5px;overflow:hidden;}
+.zr-fill{height:100%;border-radius:5px;}
+.zr-time{font-size:11px;font-weight:500;color:#444;width:36px;text-align:right;flex-shrink:0;}
+.zr-pct{font-size:10px;color:#bbb;width:26px;text-align:right;flex-shrink:0;}
+
+/* Next workout */
+.nxt-inner{display:flex;align-items:center;gap:10px;padding:11px 13px 9px;border-bottom:1px solid #f5f5f5;}
+.nxt-icon{width:34px;height:34px;border-radius:8px;background:#fff3ee;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.nxt-pill{font-size:9px;font-weight:600;color:#FC4C02;text-transform:uppercase;letter-spacing:.8px;}
+.nxt-title{font-size:14px;font-weight:600;color:#1a1a1a;margin-top:1px;}
+.nxt-body{padding:9px 13px 12px;font-size:12px;color:#555;line-height:1.65;}
+
+/* Workout filters */
+.filter-row{display:flex;overflow-x:auto;scrollbar-width:none;gap:6px;padding:10px 14px 0;}
+.filter-row::-webkit-scrollbar{display:none;}
+.fchip{flex-shrink:0;padding:5px 12px;border-radius:16px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid #e8e8e8;color:#999;background:#fff;white-space:nowrap;}
+.fchip.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a;}
+
+/* Year tabs */
+.ytabs{display:flex;margin:10px 14px 0;background:#f0ede8;border-radius:10px;padding:3px;}
+.ytab{flex:1;padding:6px;text-align:center;font-size:12px;font-weight:500;color:#999;border-radius:7px;cursor:pointer;}
+.ytab.active{background:#fff;color:#1a1a1a;box-shadow:0 1px 3px rgba(0,0,0,.1);}
+
+/* Month accordion */
+.month-block{margin:8px 14px 0;background:#fff;border:1px solid #ebebeb;border-radius:12px;overflow:hidden;}
+.month-hdr{padding:10px 13px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
+.month-name{font-size:13px;font-weight:600;color:#1a1a1a;}
+.month-stats-txt{font-size:11px;color:#bbb;}
+.month-arr{font-size:11px;color:#bbb;transition:transform .2s;}
+.month-arr.open{transform:rotate(180deg);}
+.month-body{display:none;border-top:1px solid #f5f5f5;}
+.month-body.open{display:block;}
+
+/* Activity card */
+.act-card{border-bottom:1px solid #f5f5f5;}
+.act-card:last-child{border-bottom:none;}
+.act-top{display:flex;align-items:center;gap:9px;padding:10px 13px 8px;}
+.act-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.act-info{flex:1;min-width:0;}
+.act-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.act-meta{font-size:10px;color:#bbb;margin-top:1px;}
+.act-hrbox{text-align:right;flex-shrink:0;}
+.act-hrv{font-size:17px;font-weight:600;line-height:1;}
+.act-hrl{font-size:8px;color:#ccc;}
+.act-zbar{height:8px;display:flex;margin:0 13px;border-radius:4px;overflow:hidden;background:#f0f0f0;}
+.act-zseg{height:100%;}
+.act-hl{padding:8px 13px;border-top:1px solid #f8f8f8;display:flex;gap:7px;background:#f9fff9;align-items:flex-start;}
+.hl-star{font-size:12px;flex-shrink:0;}
+.hl-txt{font-size:11px;color:#2d7a3a;font-weight:500;line-height:1.5;}
+.act-desc{padding:6px 13px 0;font-size:11px;color:#666;line-height:1.6;border-top:1px solid #f8f8f8;}
+.act-cmp{padding:3px 13px 8px;font-size:10px;color:#aaa;font-style:italic;}
+.act-zones-wrap{padding:8px 13px 10px;border-top:1px solid #f8f8f8;}
+.azrow{display:flex;align-items:center;gap:6px;padding:2px 0;}
+.azr-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.azr-name{font-size:10px;color:#aaa;width:66px;flex-shrink:0;}
+.azr-range{font-size:9px;color:#ddd;width:56px;flex-shrink:0;}
+.azr-track{flex:1;height:6px;background:#f0ede8;border-radius:3px;overflow:hidden;}
+.azr-fill{height:100%;border-radius:3px;}
+.azr-time{font-size:10px;font-weight:500;color:#555;width:30px;text-align:right;flex-shrink:0;}
+.azr-pct{font-size:10px;color:#ccc;width:22px;text-align:right;flex-shrink:0;}
+.est-note{font-size:9px;color:#ccc;padding-top:4px;}
+.act-sum{padding:7px 13px 10px;border-top:1px solid #f8f8f8;font-size:11px;color:#777;line-height:1.6;}
+
+/* Pagination */
+.pg-row{display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 0;}
+.pg-btn{background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:6px 14px;font-size:12px;color:#555;cursor:pointer;}
+.pg-btn:disabled{opacity:.35;cursor:not-allowed;}
+.pg-info{font-size:11px;color:#aaa;}
+
+/* Goals */
+.gri{display:flex;align-items:center;gap:8px;padding:9px 13px;border-bottom:1px solid #f8f8f8;}
+.gri:last-of-type{border-bottom:none;}
+.gri-lbl{font-size:12px;color:#555;flex:1;}
+.gri-inp{background:#f5f5f0;border:1px solid #e8e8e8;border-radius:8px;padding:5px 9px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;color:#1a1a1a;width:100px;text-align:right;}
+.gri-inp:focus{outline:none;border-color:#FC4C02;}
+.gri-unit{font-size:11px;color:#bbb;width:30px;}
+.save-btn{margin:10px 13px 13px;width:calc(100% - 26px);background:#FC4C02;color:#fff;border:none;border-radius:10px;padding:10px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;}
+
+/* Best efforts */
+.ef-row{display:flex;align-items:center;gap:10px;padding:9px 13px;border-bottom:1px solid #f8f8f8;}
+.ef-row:last-child{border-bottom:none;}
+.ef-dist{font-size:13px;font-weight:600;width:100px;flex-shrink:0;}
+.ef-mid{flex:1;}
+.ef-time{font-size:14px;font-weight:600;color:#FC4C02;}
+.ef-pace{font-size:10px;color:#999;margin-top:1px;}
+.ef-date{font-size:10px;color:#bbb;margin-top:1px;}
+.pr-badge{background:#fff3ee;color:#FC4C02;font-size:9px;font-weight:600;padding:2px 6px;border-radius:5px;}
+
+/* Predictions */
+.pred-row{display:flex;align-items:center;padding:9px 13px;border-bottom:1px solid #f8f8f8;gap:8px;}
+.pred-row:last-child{border-bottom:none;}
+.pred-dist{font-size:12px;color:#555;width:90px;flex-shrink:0;}
+.pred-main{flex:1;}
+.pred-time{font-size:14px;font-weight:600;color:#1a1a1a;}
+.pred-detail{font-size:10px;color:#999;margin-top:1px;}
+.pred-vs{font-size:11px;text-align:right;flex-shrink:0;}
+.vs-a{color:#2d7a3a;} .vs-b{color:#c0392b;} .vs-o{color:#999;}
+
+/* Charts */
+.chart-wrap{padding:13px;}
+.ccrow{display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap;}
+.ccbtn{padding:4px 10px;border-radius:14px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid #e8e8e8;color:#999;background:#fff;}
+.ccbtn.active{background:#FC4C02;color:#fff;border-color:#FC4C02;}
+canvas{width:100%!important;}
+
+.ai-body{padding:13px;font-size:13px;color:#555;line-height:1.75;}
+.ai-body .h2{font-size:13px;font-weight:600;color:#1a1a1a;margin:12px 0 3px;display:block;}
+.ai-body .h2:first-child{margin-top:0;}
+.refresh-btn{display:block;width:calc(100%-26px);margin:0 13px 13px;background:transparent;border:1px solid #ebebeb;color:#bbb;border-radius:9px;padding:9px;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;text-align:center;width:calc(100% - 26px);}
+.footer{text-align:center;padding:14px 0;font-size:10px;color:#ddd;}
+.footer span{color:#FC4C02;}
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="hdr">
+  <div class="hdr-top">
+    <div class="logo">
+      <div class="logo-dot"></div>
+      <div><div class="logo-name">Train<span>AI</span></div><div class="logo-sub">Strava · Apple Watch</div></div>
+    </div>
+    <button class="go-btn" id="goBtn" onclick="analyze()">Analyze</button>
+  </div>
+  <div class="main-nav">
+    <div class="mnav active" onclick="showTab('overview',this)">Overview</div>
+    <div class="mnav" onclick="showTab('workouts',this)">Workouts</div>
+    <div class="mnav" onclick="showTab('goals',this)">Goals</div>
+    <div class="mnav" onclick="showTab('efforts',this)">Best Efforts</div>
+    <div class="mnav" onclick="showTab('charts',this)">Charts</div>
+    <div class="mnav" onclick="showTab('ai',this)">AI Coach</div>
+  </div>
+</div>
+
+<div class="pbar" id="pbar"><div class="pbar-fill"></div></div>
+<div class="pmsg" id="pmsg">Loading...</div>
+<div class="err-box" id="errBox"></div>
+
+<!-- ═══ OVERVIEW ═══ -->
+<div id="tab-overview">
+  <!-- Goal Progress (this week Mon–now) -->
+  <div class="card" id="goalCard" style="display:none">
+    <div class="card-hdr"><div class="card-title">This week's progress</div><div class="card-badge" id="goalWeekLabel"></div></div>
+    <div class="gp-wrap" id="goalRows"></div>
+  </div>
+
+  <!-- Last 10 workouts summary -->
+  <div class="card" id="sumCard" style="display:none">
+    <div class="card-hdr"><div class="card-title">Last 10 workouts</div></div>
+    <div class="stats4">
+      <div class="s4"><div class="s4v" id="s10a">—</div><div class="s4l">workouts</div></div>
+      <div class="s4"><div class="s4v" id="s10k">—</div><div class="s4l">km run</div></div>
+      <div class="s4"><div class="s4v" id="s10m">—</div><div class="s4l">minutes</div></div>
+      <div class="s4"><div class="s4v" id="s10s">—</div><div class="s4l">strength</div></div>
+    </div>
+    <div class="text-block" id="sumText"></div>
+  </div>
+
+  <!-- HR Zones with sub-tabs -->
+  <div class="card" id="hrCard" style="display:none">
+    <div class="card-hdr"><div class="card-title">HR Zones</div><div class="card-badge" id="hrBadge">Last 10</div></div>
+    <div class="stabs" id="hrTabs">
+      <div class="stab active" onclick="setHrTab('last10',this)">Last 10</div>
+      <div class="stab" onclick="setHrTab('week',this)">Past week</div>
+      <div class="stab" onclick="setHrTab('month',this)">This month</div>
+    </div>
+    <div class="zones-wrap" id="hrZones"></div>
+  </div>
+
+  <!-- Next workout -->
+  <div class="card" id="nxtCard" style="display:none">
+    <div class="card-hdr"><div class="card-title">Recommended next workout</div></div>
+    <div class="nxt-inner">
+      <div class="nxt-icon" id="nxtIcon">🏃</div>
+      <div><div class="nxt-pill">AI · VO2 max &amp; pace focus</div><div class="nxt-title" id="nxtTitle">—</div></div>
+    </div>
+    <div class="nxt-body" id="nxtBody"></div>
+  </div>
+
+  <div class="footer" id="ovFooter" style="display:none">Made for <span>You</span> · TrainAI v12.0</div>
+</div>
+
+<!-- ═══ WORKOUTS ═══ -->
+<div id="tab-workouts" style="display:none">
+  <!-- Type filter -->
+  <div class="filter-row" id="typeFilter">
+    <div class="fchip active" onclick="setWFilter('All',this)">All</div>
+    <div class="fchip" onclick="setWFilter('Run',this)">🏃 Run</div>
+    <div class="fchip" onclick="setWFilter('Walk',this)">🚶 Walk</div>
+    <div class="fchip" onclick="setWFilter('WeightTraining',this)">🏋️ Strength</div>
+    <div class="fchip" onclick="setWFilter('Workout',this)">⚡ Workout</div>
+    <div class="fchip" onclick="setWFilter('Ride',this)">🚴 Ride</div>
+    <div class="fchip" onclick="setWFilter('Hike',this)">🥾 Hike</div>
+    <div class="fchip" onclick="setWFilter('Swim',this)">🏊 Swim</div>
+  </div>
+  <!-- Year tabs -->
+  <div class="ytabs" id="yearTabs">
+    <div class="ytab active" onclick="setYear(2026,this)">2026</div>
+    <div class="ytab" onclick="setYear(2025,this)">2025</div>
+  </div>
+  <!-- Month accordions -->
+  <div id="monthBlocks"></div>
+  <!-- Pagination (for open month) -->
+  <div class="pg-row" id="pgRow" style="display:none">
+    <button class="pg-btn" id="pgPrev" onclick="pgChange(-1)">← Prev</button>
+    <span class="pg-info" id="pgInfo"></span>
+    <button class="pg-btn" id="pgNext" onclick="pgChange(1)">Next →</button>
+  </div>
+</div>
+
+<!-- ═══ GOALS ═══ -->
+<div id="tab-goals" style="display:none">
+  <div class="card" style="margin-top:10px;">
+    <div class="card-hdr"><div class="card-title">Race Schedule</div></div>
+    <div class="gri"><div class="gri-lbl">Next race date</div><input class="gri-inp" id="g-race-date" type="date" style="width:135px;"></div>
+    <div class="gri"><div class="gri-lbl">Race distance</div><input class="gri-inp" id="g-race-dist" type="text" placeholder="e.g. 10K"></div>
+    <div class="gri"><div class="gri-lbl">Goal finish time</div><input class="gri-inp" id="g-race-time" type="text" placeholder="h:mm:ss"></div>
+  </div>
+  <div class="card" style="margin-top:8px;">
+    <div class="card-hdr"><div class="card-title">Weekly Targets</div></div>
+    <div class="gri"><div class="gri-lbl">Weekly km</div><input class="gri-inp" id="g-weekly-km" type="number" placeholder="0"><div class="gri-unit">km</div></div>
+    <div class="gri"><div class="gri-lbl">Weekly runs</div><input class="gri-inp" id="g-weekly-runs" type="number" placeholder="0"><div class="gri-unit">runs</div></div>
+  </div>
+  <div class="card" style="margin-top:8px;">
+    <div class="card-hdr"><div class="card-title">VO2 Max</div></div>
+    <div class="gri"><div class="gri-lbl">Current VO2 Max</div><input class="gri-inp" id="g-vo2-current" type="number" placeholder="0"><div class="gri-unit">ml/kg</div></div>
+    <div class="gri"><div class="gri-lbl">Target VO2 Max</div><input class="gri-inp" id="g-vo2-target" type="number" placeholder="0"><div class="gri-unit">ml/kg</div></div>
+  </div>
+  <div class="card" style="margin-top:8px;">
+    <div class="card-hdr"><div class="card-title">Goals</div></div>
+    <div class="gri"><div class="gri-lbl">5K</div><input class="gri-inp" id="g-pr-5k-goal" type="text" placeholder="mm:ss"></div>
+    <div class="gri"><div class="gri-lbl">10K</div><input class="gri-inp" id="g-pr-10k-goal" type="text" placeholder="mm:ss"></div>
+    <div class="gri"><div class="gri-lbl">15K</div><input class="gri-inp" id="g-pr-15k-goal" type="text" placeholder="mm:ss"></div>
+    <div class="gri"><div class="gri-lbl">Half Marathon</div><input class="gri-inp" id="g-pr-21k-goal" type="text" placeholder="h:mm:ss"></div>
+    <div class="gri"><div class="gri-lbl">Marathon</div><input class="gri-inp" id="g-pr-42k-goal" type="text" placeholder="h:mm:ss"></div>
+    <button class="save-btn" onclick="saveGoals()">💾 Save &amp; Reload Insights</button>
+  </div>
+</div>
+
+<!-- ═══ BEST EFFORTS ═══ -->
+<div id="tab-efforts" style="display:none">
+  <div class="card" style="margin-top:10px;">
+    <div class="card-hdr"><div class="card-title">Best Efforts (2025–now)</div><div class="card-badge" id="efSrc">Strava</div></div>
+    <div id="efList"><div style="padding:14px;font-size:12px;color:#bbb;text-align:center;">Tap Analyze to load</div></div>
+  </div>
+  <div class="card" style="margin-top:8px;">
+    <div class="card-hdr"><div class="card-title">Performance Prediction</div><div class="card-badge">Riegel formula</div></div>
+    <div id="predList"><div style="padding:14px;font-size:12px;color:#bbb;text-align:center;">Tap Analyze to load</div></div>
+  </div>
+</div>
+
+<!-- ═══ CHARTS ═══ -->
+<div id="tab-charts" style="display:none">
+  <div class="card" style="margin-top:10px;">
+    <div class="card-hdr"><div class="card-title">Activity Trends</div></div>
+    <div class="chart-wrap">
+      <div class="ccrow" id="ctTime">
+        <div class="ccbtn active" onclick="setCT('week',this)">This week</div>
+        <div class="ccbtn" onclick="setCT('month',this)">This month</div>
+        <div class="ccbtn" onclick="setCT('y2026',this)">2026</div>
+        <div class="ccbtn" onclick="setCT('y2025',this)">2025</div>
+        <div class="ccbtn" onclick="setCT('all',this)">All</div>
+      </div>
+      <div class="ccrow" id="ctType">
+        <div class="ccbtn active" onclick="setCTy('distance',this)">Distance</div>
+        <div class="ccbtn" onclick="setCTy('duration',this)">Duration</div>
+        <div class="ccbtn" onclick="setCTy('pace',this)">Pace</div>
+        <div class="ccbtn" onclick="setCTy('hr',this)">Avg HR</div>
+      </div>
+      <div class="ccrow" id="ctSport">
+        <div class="ccbtn active" onclick="setCTS('Run',this)">🏃 Run</div>
+        <div class="ccbtn" onclick="setCTS('Walk',this)">🚶 Walk</div>
+        <div class="ccbtn" onclick="setCTS('WeightTraining',this)">🏋️ Strength</div>
+        <div class="ccbtn" onclick="setCTS('Ride',this)">🚴 Ride</div>
+      </div>
+      <canvas id="mainChart" height="220"></canvas>
+      <div id="cEmpty" style="display:none;padding:20px;text-align:center;font-size:12px;color:#bbb;">No data for this selection</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ AI COACH ═══ -->
+<div id="tab-ai" style="display:none">
+  <div class="card" style="margin-top:10px;">
+    <div class="card-hdr"><div class="card-title">AI Coaching</div><div class="card-badge">VO2 max &amp; pace focus</div></div>
+    <div class="ai-body" id="aiBody"><div style="color:#bbb;font-size:12px;text-align:center;padding:10px;">Tap Analyze to get coaching insights.</div></div>
+    <button class="refresh-btn" onclick="analyze()">↺ Refresh</button>
+  </div>
+</div>
+
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+// ── CONSTANTS ────────────────────────────────────────────────────────
+const ZC=['#5ac8fa','#4cd964','#ffcc00','#ff9500','#ff3b30'];
+const ZN=['Recovery','Endurance','Tempo','Threshold','Max'];
+const ZR=['<124','124–154','154–169','169–184','184+'];
+const ZB=[0,124,154,169,184,999];
+const WI={Run:'🏃',Walk:'🚶',WeightTraining:'🏋️',Ride:'🚴',Hike:'🥾',Swim:'🏊',Workout:'⚡',VirtualRun:'🏃'};
+const WBg={Run:'#fff5f0',Walk:'#f0f5ff',WeightTraining:'#f0fff8',Ride:'#fffbf0',Workout:'#f5f0ff'};
+const GKEYS=['g-race-date','g-race-dist','g-race-time','g-weekly-km','g-weekly-runs','g-vo2-current','g-vo2-target','g-pr-5k-goal','g-pr-10k-goal','g-pr-15k-goal','g-pr-21k-goal','g-pr-42k-goal'];
+const STEPS=['Fetching latest workouts...','Loading history from 2025...','Getting best efforts (2025–now)...','Computing HR zones...','Generating AI insights...','Almost done...'];
+const PAGE_SIZE=10;
+
+// ── STATE ────────────────────────────────────────────────────────────
+let allActs=[], allBE=[], aiSummary='', aiAnalysis='', aiNext={};
+let wFilter='All', wYear=2026, wPage=0, openMonth=null, openMonthActs=[];
+let hrTab='last10', cTime='week', cType='distance', cSport='Run';
+let chartInst=null;
+
+// ── GOALS ────────────────────────────────────────────────────────────
+function loadGoals(){GKEYS.forEach(k=>{const v=localStorage.getItem(k);if(v){const e=document.getElementById(k);if(e)e.value=v;}});}
+function saveGoals(){
+  GKEYS.forEach(k=>{const e=document.getElementById(k);if(e)localStorage.setItem(k,e.value);});
+  const b=document.querySelector('.save-btn');b.textContent='✅ Saved!';
+  setTimeout(()=>{b.textContent='💾 Save & Reload Insights';analyze();},600);
+}
+function getGoals(){
+  const g={};
+  GKEYS.forEach(k=>{const e=document.getElementById(k);if(e)g[k.replace('g-','')]=e.value;});
+  return g;
+}
+
+// ── HELPERS ──────────────────────────────────────────────────────────
+function fmtSecs(s){if(!s||s<1)return '';const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60;return h>0?`${h}:${m.toString().padStart(2,'0')}:${sc.toString().padStart(2,'0')}`:`${m}:${sc.toString().padStart(2,'0')}`;}
+function fmtMins(t){const tot=Math.round(t*60),h=Math.floor(tot/3600),m=Math.floor((tot%3600)/60),s=tot%60;return h>0?`${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`:`${m}:${s.toString().padStart(2,'0')}`;}
+function fmtT2(s){if(!s||s<30)return '';const h=Math.floor(s/3600),m=Math.floor((s%3600)/60);return h>0?`${h}h ${m}m`:`${m}m`;}
+function fmtPace(v){const m=Math.floor(v),s=Math.round((v-m)*60);return `${m}:${s.toString().padStart(2,'0')}`;}
+function getZone(hr){if(!hr)return -1;for(let i=0;i<5;i++)if(hr>=ZB[i]&&hr<ZB[i+1])return i;return 4;}
+function getMon(){const n=new Date(),d=n.getDay(),diff=d===0?-6:1-d,m=new Date(n);m.setDate(n.getDate()+diff);m.setHours(0,0,0,0);return m;}
+function getMonthStart(){const n=new Date();return new Date(n.getFullYear(),n.getMonth(),1);}
+function estimateZones(hr,dur,sport){
+  if(!hr||!dur)return null;
+  if(sport==='Walk')return [Math.round(dur*60),0,0,0,0];
+  const z=getZone(hr),zmin=ZB[z],zmax=ZB[z+1]<500?ZB[z+1]:ZB[z]+20;
+  const pos=(hr-zmin)/(zmax-zmin),sf=Math.min(pos,1-pos)*0.3;
+  const w=[0,0,0,0,0];w[z]=1-sf*2;
+  if(z>0)w[z-1]+=sf*(1-pos);else w[z]+=sf*(1-pos);
+  if(z<4)w[z+1]+=sf*pos;else w[z]+=sf*pos;
+  return w.map(v=>Math.round(v*dur*60));
+}
+function mdHtml(t){return t.replace(/^#{1,3} (.+)/gm,'<span class="h2">$1</span>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/^[\-\*] /gm,'• ').replace(/\n/g,'<br>');}
+
+// ── NAVIGATION ────────────────────────────────────────────────────────
+function showTab(name,el){
+  document.querySelectorAll('[id^="tab-"]').forEach(t=>t.style.display='none');
+  document.getElementById('tab-'+name).style.display='block';
+  document.querySelectorAll('.mnav').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  if(name==='charts'&&allActs.length>0)renderChart();
+}
+
+// ── OVERVIEW ─────────────────────────────────────────────────────────
+function renderOverview(){
+  const now=new Date(), mon=getMon();
+  const thisWeek=allActs.filter(a=>new Date(a.date)>=mon);
+  const wRuns=thisWeek.filter(a=>a.sport==='Run');
+  const wKm=wRuns.reduce((s,a)=>s+a.distance,0);
+  const goals=getGoals();
+
+  // Week label
+  const monStr=mon.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  const todStr=now.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  document.getElementById('goalWeekLabel').textContent=`${monStr} – ${todStr}`;
+
+  // Goal rows
+  const rows=[];
+  if(goals['weekly-km']&&parseFloat(goals['weekly-km'])>0){
+    const t=parseFloat(goals['weekly-km']),pct=Math.min(wKm/t*100,100),done=pct>=100;
+    rows.push(`<div class="gp-row"><div class="gp-top"><span class="gp-name">🏃 Weekly km</span><span class="gp-val">${wKm.toFixed(1)} / ${t} km</span></div><div class="gp-track"><div class="gp-fill${done?' done':''}" style="width:${pct}%"></div></div></div>`);
+  }
+  if(goals['weekly-runs']&&parseInt(goals['weekly-runs'])>0){
+    const t=parseInt(goals['weekly-runs']),pct=Math.min(wRuns.length/t*100,100),done=pct>=100;
+    rows.push(`<div class="gp-row"><div class="gp-top"><span class="gp-name">📅 Weekly runs</span><span class="gp-val">${wRuns.length} / ${t}</span></div><div class="gp-track"><div class="gp-fill${done?' done':''}" style="width:${pct}%"></div></div></div>`);
+  }
+  if(goals['race-date']&&goals['race-dist']){
+    const rd=new Date(goals['race-date']),days=Math.ceil((rd-now)/86400000);
+    const ds=rd.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    if(days>0) rows.push(`<div class="gp-row"><div class="gp-top"><span class="gp-name">🏁 ${goals['race-dist']}</span><span class="gp-val">${days} days away</span></div><div class="gp-sub">${ds}${goals['race-time']?' · Goal: '+goals['race-time']:''}</div></div>`);
+    else if(days===0) rows.push(`<div class="gp-row"><div class="gp-top"><span class="gp-name">🏁 ${goals['race-dist']}</span><span class="gp-val" style="color:#4cd964">RACE DAY! 🎉</span></div></div>`);
+  }
+  if(rows.length){document.getElementById('goalRows').innerHTML=`<div class="gp-lbl">Goal progress</div>`+rows.join('');document.getElementById('goalCard').style.display='block';}
+
+  // Last 10 stats
+  const r10=allActs.slice(0,10);
+  const runs10=r10.filter(a=>a.sport==='Run');
+  document.getElementById('s10a').textContent=r10.length;
+  document.getElementById('s10k').textContent=runs10.reduce((s,a)=>s+a.distance,0).toFixed(1);
+  document.getElementById('s10m').textContent=Math.round(r10.reduce((s,a)=>s+a.duration,0));
+  document.getElementById('s10s').textContent=r10.filter(a=>a.sport==='WeightTraining').length;
+  document.getElementById('sumText').textContent=aiSummary;
+  document.getElementById('sumCard').style.display='block';
+
+  // HR Zones
+  renderHrZones(hrTab);
+  document.getElementById('hrCard').style.display='block';
+  buildHrMonthTabs();
+
+  // Next workout
+  if(aiNext&&aiNext.title){
+    document.getElementById('nxtIcon').textContent=WI[aiNext.type]||'🏃';
+    document.getElementById('nxtTitle').textContent=aiNext.title;
+    document.getElementById('nxtBody').textContent=aiNext.description;
+    document.getElementById('nxtCard').style.display='block';
+  }
+  document.getElementById('ovFooter').style.display='block';
+}
+
+function buildHrMonthTabs(){
+  const tabs=document.getElementById('hrTabs');
+  tabs.querySelectorAll('.dyn-tab').forEach(t=>t.remove());
+  const months=new Set();
+  allActs.forEach(a=>{if(a.date)months.add(a.date.slice(0,7));});
+  [...months].sort().reverse().forEach(ym=>{
+    const[y,m]=ym.split('-');
+    const lbl=new Date(y,m-1).toLocaleDateString('en-US',{month:'short',year:'2-digit'});
+    const b=document.createElement('div');
+    b.className='stab dyn-tab';b.textContent=lbl;
+    b.onclick=()=>{document.querySelectorAll('#hrTabs .stab').forEach(t=>t.classList.remove('active'));b.classList.add('active');hrTab='m_'+ym;renderHrZones(hrTab);};
+    tabs.appendChild(b);
+  });
+}
+
+function setHrTab(tab,el){
+  document.querySelectorAll('#hrTabs .stab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');hrTab=tab;renderHrZones(tab);
+}
+
+function renderHrZones(tab){
+  let acts, badge;
+  if(tab==='last10'){acts=allActs.slice(0,10);badge='Last 10 workouts';}
+  else if(tab==='week'){const d=new Date();d.setDate(d.getDate()-7);acts=allActs.filter(a=>new Date(a.date)>=d);badge='Past 7 days';}
+  else if(tab==='month'){acts=allActs.filter(a=>new Date(a.date)>=getMonthStart());badge='This month';}
+  else if(tab.startsWith('m_')){
+    const ym=tab.slice(2);acts=allActs.filter(a=>a.date&&a.date.startsWith(ym));
+    const[y,m]=ym.split('-');badge=new Date(y,m-1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  } else{acts=allActs;badge='All';}
+  document.getElementById('hrBadge').textContent=badge;
+
+  const totals=[0,0,0,0,0];
+  acts.forEach(a=>{const e=estimateZones(a.avg_hr,a.duration,a.sport);if(e)e.forEach((t,i)=>totals[i]+=t);});
+  const grand=totals.reduce((s,t)=>s+t,0)||1,maxT=Math.max(...totals,1);
+  document.getElementById('hrZones').innerHTML=
+    `<div class="zones-lbl">Time in each zone</div>`+
+    totals.map((t,i)=>{
+      const pct=Math.round(t/grand*100),bw=Math.round(t/maxT*100);
+      return `<div class="zrow"><div class="zr-dot" style="background:${ZC[i]}"></div><div class="zr-name">Z${i+1} ${ZN[i]}</div><div class="zr-range">${ZR[i]} bpm</div><div class="zr-track"><div class="zr-fill" style="width:${bw}%;background:${ZC[i]}"></div></div><div class="zr-time">${fmtT2(t)}</div><div class="zr-pct">${pct}%</div></div>`;
+    }).join('');
+}
+
+// ── WORKOUTS ─────────────────────────────────────────────────────────
+function setWFilter(f,el){wFilter=f;wPage=0;document.querySelectorAll('#typeFilter .fchip').forEach(c=>c.classList.remove('active'));el.classList.add('active');renderMonthBlocks();}
+function setYear(y,el){wYear=y;wPage=0;document.querySelectorAll('#yearTabs .ytab').forEach(t=>t.classList.remove('active'));el.classList.add('active');renderMonthBlocks();}
+
+function getWFiltered(){
+  return allActs.filter(a=>{
+    if(parseInt(a.date.slice(0,4))!==wYear)return false;
+    if(wFilter==='All')return true;
+    return a.sport===wFilter;
+  });
+}
+
+function renderMonthBlocks(){
+  const acts=getWFiltered();
+  // Group by month, newest month first
+  const byM={};
+  acts.forEach(a=>{const k=a.date.slice(0,7);if(!byM[k])byM[k]=[];byM[k].push(a);});
+  const months=Object.keys(byM).sort().reverse();
+  const container=document.getElementById('monthBlocks');
+  container.innerHTML='';
+  document.getElementById('pgRow').style.display='none';
+  openMonth=null;openMonthActs=[];
+
+  if(!months.length){
+    container.innerHTML='<div style="padding:20px;text-align:center;font-size:12px;color:#bbb;">No workouts found</div>';
+    return;
+  }
+
+  months.forEach((ym,idx)=>{
+    const mActs=byM[ym]; // already newest first (from server sort)
+    const[y,m]=ym.split('-');
+    const mName=new Date(y,m-1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
+    const runs=mActs.filter(a=>a.sport==='Run');
+    const km=runs.reduce((s,a)=>s+a.distance,0);
+    const stats=`${mActs.length} workouts${km>0?' · '+km.toFixed(1)+'km':''}`;
+
+    const block=document.createElement('div');block.className='month-block';block.id='mb-'+ym;
+    const hdr=document.createElement('div');hdr.className='month-hdr';
+    hdr.innerHTML=`<span class="month-name">${mName}</span><span class="month-stats-txt">${stats}</span><span class="month-arr" id="arr-${ym}">▾</span>`;
+    const body=document.createElement('div');body.className='month-body';body.id='bd-'+ym;
+    hdr.onclick=()=>{
+      const wasOpen=body.classList.contains('open');
+      // Close all
+      document.querySelectorAll('.month-body.open').forEach(b=>{b.classList.remove('open');});
+      document.querySelectorAll('.month-arr.open').forEach(a=>{a.classList.remove('open');});
+      document.getElementById('pgRow').style.display='none';
+      if(!wasOpen){
+        body.classList.add('open');
+        document.getElementById('arr-'+ym).classList.add('open');
+        openMonth=ym;openMonthActs=mActs;wPage=0;
+        renderPagedActs(body,mActs);
+      }
+    };
+    block.appendChild(hdr);block.appendChild(body);container.appendChild(block);
+
+    // Auto-open latest month
+    if(idx===0){
+      body.classList.add('open');
+      document.getElementById('arr-'+ym).classList.add('open');
+      openMonth=ym;openMonthActs=mActs;wPage=0;
+      renderPagedActs(body,mActs);
+    }
+  });
+}
+
+function renderPagedActs(body,acts){
+  const start=wPage*PAGE_SIZE, slice=acts.slice(start,start+PAGE_SIZE);
+  body.innerHTML=slice.map(a=>actHtml(a)).join('');
+  // Pagination
+  const pg=document.getElementById('pgRow');
+  if(acts.length>PAGE_SIZE){
+    pg.style.display='flex';
+    document.getElementById('pgPrev').disabled=wPage===0;
+    document.getElementById('pgNext').disabled=start+PAGE_SIZE>=acts.length;
+    document.getElementById('pgInfo').textContent=`${start+1}–${Math.min(start+PAGE_SIZE,acts.length)} of ${acts.length}`;
+  } else{pg.style.display='none';}
+}
+
+function pgChange(dir){
+  wPage+=dir;
+  const body=document.getElementById('bd-'+openMonth);
+  renderPagedActs(body,openMonthActs);
+  document.getElementById('mb-'+openMonth).scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function actHtml(a){
+  const icon=WI[a.sport]||'🏃',bg=WBg[a.sport]||'#f9f9f9';
+  const zone=getZone(a.avg_hr),hrClr=a.avg_hr?ZC[zone]:'#ccc';
+  const dist=a.distance>0?`${a.distance}km · `:'';
+  const zt=estimateZones(a.avg_hr,a.duration,a.sport);
+  const tot=zt?zt.reduce((s,t)=>s+t,0):0,maxT=zt?Math.max(...zt,1):1;
+  const bars=zt&&tot>0?zt.map((t,i)=>{const p=t/tot*100;return p>0.5?`<div class="act-zseg" style="flex:${p};background:${ZC[i]}"></div>`:''}).join(''):'';
+  const zrows=zt&&tot>0?zt.map((t,i)=>{if(t<30)return '';const p=Math.round(t/tot*100),bw=Math.round(t/maxT*100);return `<div class="azrow"><div class="azr-dot" style="background:${ZC[i]}"></div><div class="azr-name">Z${i+1} ${ZN[i]}</div><div class="azr-range">${ZR[i]} bpm</div><div class="azr-track"><div class="azr-fill" style="width:${bw}%;background:${ZC[i]}"></div></div><div class="azr-time">${fmtT2(t)}</div><div class="azr-pct">${p}%</div></div>`;}).filter(Boolean).join(''):'';
+  let sp=[];
+  if(a.sport==='Run'&&a.distance>0)sp.push(`<b>${a.distance}km</b> · <b>${fmtPace(a.duration/a.distance)} /km</b>`);
+  if(a.avg_hr)sp.push(`avg <b style="color:${hrClr}">${Math.round(a.avg_hr)} bpm</b> (${ZN[zone]})`);
+  if(zt&&tot>0){const ti=zt.indexOf(Math.max(...zt));sp.push(`${Math.round(zt[ti]/tot*100)}% ${ZN[ti]}`);}
+  return `<div class="act-card"><div class="act-top"><div class="act-icon" style="background:${bg}">${icon}</div><div class="act-info"><div class="act-name">${a.name}</div><div class="act-meta">${a.date} · ${dist}${Math.round(a.duration)} min</div></div>${a.avg_hr?`<div class="act-hrbox"><div class="act-hrv" style="color:${hrClr}">${Math.round(a.avg_hr)}</div><div class="act-hrl">avg bpm</div></div>`:''}</div>${bars?`<div class="act-zbar">${bars}</div>`:''} ${a.highlight?`<div class="act-hl"><div class="hl-star">★</div><div class="hl-txt">${a.highlight}</div></div>`:''} ${a.description?`<div class="act-desc">${a.description}</div>`:''} ${a.comparison?`<div class="act-cmp">${a.comparison}</div>`:''} ${zrows?`<div class="act-zones-wrap">${zrows}<div class="est-note">⚡ Estimated from avg HR</div></div>`:''} ${sp.length?`<div class="act-sum">${sp.join(' · ')}</div>`:''}</div>`;
+}
+
+// ── BEST EFFORTS ─────────────────────────────────────────────────────
+function renderEfforts(){
+  const ORDER=['400m','1/2 mile','1K','1 mile','2 miles','5K','10K','15K','10 miles','20K','Half-Marathon','Marathon'];
+  if(allBE.length>0){
+    document.getElementById('efSrc').textContent='Strava 2025–now';
+    const sorted=[...allBE].sort((a,b)=>{const ia=ORDER.indexOf(a.name),ib=ORDER.indexOf(b.name);return(ia===-1?99:ia)-(ib===-1?99:ib);});
+    document.getElementById('efList').innerHTML=sorted.map(e=>{
+      const t=e.elapsed_time,h=Math.floor(t/3600),m=Math.floor((t%3600)/60),s=t%60;
+      const ts=h>0?`${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`:`${m}:${s.toString().padStart(2,'0')}`;
+      const pace=e.distance>0?e.elapsed_time/60/(e.distance/1000):0;
+      return `<div class="ef-row"><div class="ef-dist">${e.name}</div><div class="ef-mid"><div class="ef-time">${ts}</div>${pace>0?`<div class="ef-pace">${fmtPace(pace)} /km</div>`:''}<div class="ef-date">${e.date}</div></div><span class="pr-badge">PR</span></div>`;
+    }).join('');
+  } else {
+    document.getElementById('efSrc').textContent='Estimated';
+    const runs=allActs.filter(a=>a.sport==='Run'&&a.distance>0&&a.duration>0);
+    if(!runs.length){document.getElementById('efList').innerHTML='<div style="padding:14px;font-size:12px;color:#bbb;text-align:center;">No run data</div>';return;}
+    const best=runs.reduce((b,r)=>r.duration/r.distance<b.duration/b.distance?r:b);
+    const dists=[1,2,5,10,15,21.1,42.2],lbls=['1K','2K','5K','10K','15K','Half Marathon','Marathon'];
+    document.getElementById('efList').innerHTML=dists.map((d,i)=>{
+      const match=runs.filter(r=>r.distance>=d*0.85&&r.distance<=d*1.15);
+      let t,pace,date,actual=false;
+      if(match.length){const b=match.reduce((x,r)=>r.duration/r.distance<x.duration/x.distance?r:x);pace=b.duration/b.distance;t=pace*d;date=b.date;actual=true;}
+      else{t=best.duration*Math.pow(d/best.distance,1.06);pace=t/d;date='est.';}
+      return `<div class="ef-row"><div class="ef-dist">${lbls[i]}</div><div class="ef-mid"><div class="ef-time">${fmtMins(t)}</div><div class="ef-pace">${fmtPace(pace)} /km</div><div class="ef-date">${date}</div></div>${actual?'<span class="pr-badge">PR</span>':''}</div>`;
+    }).join('');
+  }
+
+  // Predictions
+  const goals=getGoals();
+  const runs=allActs.filter(a=>a.sport==='Run'&&a.distance>0&&a.duration>0);
+  if(!runs.length){document.getElementById('predList').innerHTML='<div style="padding:14px;font-size:12px;color:#bbb;text-align:center;">No run data</div>';return;}
+  const best=runs.reduce((b,r)=>r.duration/r.distance<b.duration/b.distance?r:b);
+  function getRealPace(dist){
+    if(!allBE.length)return null;
+    const nm={5:'5K',10:'10K',21.1:'Half-Marathon',42.2:'Marathon'};
+    const e=allBE.find(e=>e.name===nm[dist]);
+    return e?e.elapsed_time/60/(e.distance/1000):null;
+  }
+  const pGoals=[{lbl:'5K',d:5,gk:'pr-5k-goal'},{lbl:'10K',d:10,gk:'pr-10k-goal'},{lbl:'15K',d:15,gk:'pr-15k-goal'},{lbl:'Half Marathon',d:21.1,gk:'pr-21k-goal'},{lbl:'Marathon',d:42.2,gk:'pr-42k-goal'}];
+  document.getElementById('predList').innerHTML=pGoals.map(g=>{
+    const rp=getRealPace(g.d);
+    const pt=rp?rp*g.d:best.duration*Math.pow(g.d/best.distance,1.06);
+    const pp=pt/g.d,phr=best.avg_hr?Math.min(Math.round(best.avg_hr*Math.pow(g.d/best.distance,0.04)),192):null;
+    let vs='';
+    const gs=goals[g.gk]||'';
+    if(gs){const pts=gs.split(':').map(Number);const gm=pts.length===3?pts[0]*60+pts[1]+pts[2]/60:pts[0]+pts[1]/60;const diff=pt-gm;if(Math.abs(diff)<0.5)vs=`<div class="pred-vs vs-o">On target ✓</div>`;else if(diff<0)vs=`<div class="pred-vs vs-a">${Math.abs(diff).toFixed(1)}m ahead 🎯</div>`;else vs=`<div class="pred-vs vs-b">${diff.toFixed(1)}m behind</div>`;}
+    return `<div class="pred-row"><div class="pred-dist">${g.lbl}</div><div class="pred-main"><div class="pred-time">${fmtMins(pt)}</div><div class="pred-detail">${fmtPace(pp)} /km${phr?` · ~${phr} bpm`:''}</div></div>${vs}</div>`;
+  }).join('');
+}
+
+// ── CHARTS ────────────────────────────────────────────────────────────
+function setCT(t,el){cTime=t;document.querySelectorAll('#ctTime .ccbtn').forEach(c=>c.classList.remove('active'));el.classList.add('active');renderChart();}
+function setCTy(t,el){cType=t;document.querySelectorAll('#ctType .ccbtn').forEach(c=>c.classList.remove('active'));el.classList.add('active');renderChart();}
+function setCTS(s,el){cSport=s;document.querySelectorAll('#ctSport .ccbtn').forEach(c=>c.classList.remove('active'));el.classList.add('active');renderChart();}
+
+function renderChart(){
+  const cv=document.getElementById('mainChart'),em=document.getElementById('cEmpty');
+  // Filter by sport
+  let sa=allActs.filter(a=>a.sport===cSport);
+  // Filter by time — newest to oldest
+  const now=new Date();
+  if(cTime==='week'){const d=getMon();sa=sa.filter(a=>new Date(a.date)>=d);}
+  else if(cTime==='month'){sa=sa.filter(a=>new Date(a.date)>=getMonthStart());}
+  else if(cTime==='y2026'){sa=sa.filter(a=>a.date.startsWith('2026'));}
+  else if(cTime==='y2025'){sa=sa.filter(a=>a.date.startsWith('2025'));}
+  // all = show everything newest to oldest
+
+  const colorMap={distance:'#FC4C02',duration:'#5ac8fa',pace:'#4cd964',hr:'#ff3b30'};
+  const lblMap={distance:'km',duration:'min',pace:'min/km',hr:'bpm'};
+  const color=colorMap[cType],yLbl=lblMap[cType];
+
+  let labels=[],values=[];
+  if(cTime==='week'||cTime==='month'){
+    // Individual activities, oldest to newest (left=oldest, right=newest)
+    const acts=[...sa].reverse();
+    if(!acts.length){cv.style.display='none';em.style.display='block';return;}
+    labels=acts.map(a=>a.date.slice(5));
+    if(cType==='distance')values=acts.map(a=>+a.distance.toFixed(2));
+    else if(cType==='duration')values=acts.map(a=>+a.duration.toFixed(0));
+    else if(cType==='pace')values=acts.filter(a=>a.distance>0).map(a=>+(a.duration/a.distance).toFixed(2));
+    else values=acts.filter(a=>a.avg_hr).map(a=>Math.round(a.avg_hr));
+  } else {
+    // Group by month — oldest to newest
+    const byM={};
+    sa.forEach(a=>{const k=a.date.slice(0,7);if(!byM[k])byM[k]={d:0,dur:0,ps:0,pn:0,hs:0,hn:0};byM[k].d+=a.distance;byM[k].dur+=a.duration;if(a.distance>0){byM[k].ps+=a.duration/a.distance;byM[k].pn++;}if(a.avg_hr){byM[k].hs+=a.avg_hr;byM[k].hn++;}});
+    const keys=Object.keys(byM).sort(); // oldest first
+    if(!keys.length){cv.style.display='none';em.style.display='block';return;}
+    labels=keys.map(k=>{const[y,m]=k.split('-');return new Date(y,m-1).toLocaleDateString('en-US',{month:'short',year:'2-digit'});});
+    if(cType==='distance')values=keys.map(k=>+byM[k].d.toFixed(1));
+    else if(cType==='duration')values=keys.map(k=>+byM[k].dur.toFixed(0));
+    else if(cType==='pace')values=keys.map(k=>byM[k].pn>0?+(byM[k].ps/byM[k].pn).toFixed(2):0);
+    else values=keys.map(k=>byM[k].hn>0?Math.round(byM[k].hs/byM[k].hn):0);
+  }
+
+  if(!values.length||values.every(v=>!v)){cv.style.display='none';em.style.display='block';return;}
+  cv.style.display='block';em.style.display='none';
+  if(chartInst)chartInst.destroy();
+  chartInst=new Chart(cv.getContext('2d'),{
+    type:'line',
+    data:{labels,datasets:[{label:yLbl,data:values,borderColor:color,backgroundColor:color+'22',borderWidth:2.5,pointBackgroundColor:color,pointRadius:5,tension:0.3,fill:true}]},
+    options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.parsed.y} ${yLbl}`}}},scales:{x:{grid:{display:false},ticks:{font:{size:10},color:'#bbb',maxRotation:45}},y:{grid:{color:'#f0f0f0'},ticks:{font:{size:10},color:'#bbb'}}}},
+    plugins:[{id:'dl',afterDatasetsDraw(chart){const ctx=chart.ctx;chart.data.datasets.forEach((_,i)=>{const meta=chart.getDatasetMeta(i);meta.data.forEach((pt,j)=>{const v=chart.data.datasets[i].data[j];if(!v)return;ctx.fillStyle='#444';ctx.font='bold 10px DM Sans,sans-serif';ctx.textAlign='center';ctx.fillText(v,pt.x,pt.y-10);});});}}]
+  });
+}
+
+// ── ANALYZE ──────────────────────────────────────────────────────────
+async function analyze(){
+  const btn=document.getElementById('goBtn');
+  btn.disabled=true;
+  document.getElementById('pbar').classList.add('on');
+  document.getElementById('pmsg').classList.add('on');
+  document.getElementById('errBox').classList.remove('on');
+
+  let si=0;
+  const msgEl=document.getElementById('pmsg');
+  msgEl.textContent=STEPS[0];
+  const timer=setInterval(()=>{msgEl.textContent=STEPS[++si%STEPS.length];},2500);
+
+  try{
+    const goals=getGoals();
+    const res=await fetch('/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({goals})});
+    const data=await res.json();
+    clearInterval(timer);
+    document.getElementById('pbar').classList.remove('on');
+    document.getElementById('pmsg').classList.remove('on');
+
+    if(data.success){
+      allActs=data.activities;   // already newest first from server
+      allBE=data.best_efforts||[];
+      aiSummary=data.summary||'';
+      aiAnalysis=data.analysis||'';
+      aiNext=data.next_workout||{};
+      document.getElementById('aiBody').innerHTML=mdHtml(aiAnalysis);
+      renderOverview();
+      renderMonthBlocks();
+      renderEfforts();
+    } else {
+      document.getElementById('errBox').textContent=data.error;
+      document.getElementById('errBox').classList.add('on');
+      console.error(data.trace);
+    }
+  } catch(e){
+    clearInterval(timer);
+    document.getElementById('pbar').classList.remove('on');
+    document.getElementById('pmsg').classList.remove('on');
+    document.getElementById('errBox').textContent='Cannot connect to server.';
+    document.getElementById('errBox').classList.add('on');
+  }
+  btn.disabled=false;
+}
+
+loadGoals();
+</script>
+</body>
+</html>
