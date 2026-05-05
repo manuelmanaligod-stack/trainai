@@ -20,22 +20,22 @@ def get_access_token():
     return r.json()["access_token"]
 
 def get_all_activities(token):
-    """Fetch activities from Jan 2025, sorted NEWEST FIRST."""
+    """Fetch activities newest first — no after filter so page 1 is always most recent."""
     all_acts = []
-    after_ts = int(datetime(2025, 1, 1).timestamp())
-    page = 1
-    while page <= 8:
+    for page in range(1, 6):
         r = requests.get("https://www.strava.com/api/v3/athlete/activities",
                          headers={"Authorization": f"Bearer {token}"},
-                         params={"per_page": 30, "page": page, "after": after_ts})
+                         params={"per_page": 30, "page": page})
         if r.status_code != 200: break
         batch = r.json()
         if not batch: break
         all_acts.extend(batch)
-        page += 1
-    # Sort newest first by start_date
+        # Stop once we pass Jan 2025
+        oldest = batch[-1].get("start_date", "9999")
+        if oldest < "2025-01-01T00:00:00Z": break
+    # Sort newest first, filter to 2025+
     all_acts.sort(key=lambda a: a.get("start_date", ""), reverse=True)
-    return all_acts
+    return [a for a in all_acts if a.get("start_date", "") >= "2025-01-01T00:00:00Z"]
 
 def get_activity_zones(token, activity_id):
     r = requests.get(f"https://www.strava.com/api/v3/activities/{activity_id}/zones",
@@ -124,7 +124,7 @@ Return ONLY valid JSON (no markdown):
 }}"""
 
     resp = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": prompt}],
         max_tokens=3500
     )
