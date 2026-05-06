@@ -612,7 +612,7 @@ canvas{width:100%!important;}
  </div>
  <!-- Weekly Training Plan -->
  <div class="card" id="wplanCard" style="display:none;">
- <div class="card-hdr"><div class="card-title">This Week's Training Plan</div><div class="card-badge" id="wplanBadge">AI · 21K prep</div></div>
+ <div class="card-hdr"><div class="card-title" style="color:#C0365A;letter-spacing:.6px;">This Week's Training Plan</div><div class="card-badge" id="wplanBadge">AI · 21K prep</div></div>
  <div class="wplan-wrap" id="wplanBody"></div>
  </div>
 
@@ -979,7 +979,7 @@ const PZR=['>6:30', '5:55–6:30','5:15–5:55','4:55–5:15','<4:55'];
 function renderLatestActivity(){
  if(!allActs.length)return;
  const a=allActs[0];
- const actIcon=icon(icon(icon(WI[a.sport]||'run',16)||'run',16),22);
+ const actIcon=icon(WI[a.sport]||'run',22);
  const bg=WBg[a.sport]||'#f9f9f9';
  const zone=getZone(a.avg_hr),hrClr=a.avg_hr?ZC[zone]:'#1a1a1a';
  const distStr=a.distance>0?`${a.distance} km`:'—';
@@ -1182,16 +1182,16 @@ function renderWeeklyPlan(){
 
  document.getElementById('wplanBody').innerHTML=plan.map((p,i)=>{
  const d=new Date(monDate);d.setDate(monDate.getDate()+i);
- const isToday=d.toISOString().slice(0,10)===today.toISOString().slice(0,10);
- const isPast=d<today;
- const hasWorkout=allActs.find(a=>a.date===d.toISOString().slice(0,10));
- const done=hasWorkout?' ':isPast?' ':'';
- return `<div class="wplan-day${isPast&&!hasWorkout?' style="opacity:.5"':''}">
- <div class="wplan-dayname${isToday?' today':''}">${DAYS[i]}</div>
- <div class="wplan-icon">${p.icon}</div>
- <div class="wplan-content">
- <div class="wplan-title">${done}${p.title}${isToday?' ':''}</div>
- <div class="wplan-desc">${p.desc}</div>
+ const ds=d.toISOString().slice(0,10);
+ const isToday=ds===today.toISOString().slice(0,10);
+ const rowBg=isToday?'background:#fff8f8;':'';
+ const dayClr=isToday?'color:#C0365A;font-weight:700;':'color:#888;';
+ const todayBadge=isToday?` <span style="font-size:9px;background:#fff3ee;color:#C0365A;padding:1px 6px;border-radius:6px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;">Today</span>`:'';
+ return `<div style="display:flex;gap:14px;padding:10px 18px;border-bottom:1px solid #f5f5f5;${rowBg}">
+ <div style="font-size:11px;font-weight:600;width:28px;flex-shrink:0;padding-top:2px;${dayClr}">${DAYS[i]}</div>
+ <div style="flex:1;">
+   <div style="font-size:13px;font-weight:600;color:#C0365A;">${p.title}${todayBadge}</div>
+   <div style="font-size:11px;color:#aaa;margin-top:2px;line-height:1.45;">${p.desc}</div>
  </div>
  </div>`;
  }).join('');
@@ -1326,7 +1326,7 @@ function pgChange(dir){
 }
 
 function acHtml(a){
- const icon=icon(icon(WI[a.sport]||'run',16)||'run',16),bg=WBg[a.sport]||'#f9f9f9';
+ const actIcon=icon(WI[a.sport]||'run',16),bg=WBg[a.sport]||'#f9f9f9';
  const zone=getZone(a.avg_hr),hrClr=a.avg_hr?ZC[zone]:'#ccc';
  const dist=a.distance>0?`${a.distance}km · `:'';
  const zt=estimateZones(a.avg_hr,a.duration,a.sport);
@@ -1337,7 +1337,7 @@ function acHtml(a){
  if(a.sport==='Run'&&a.distance>0)sp.push(`<b>${a.distance}km</b> · <b>${fmtPace(a.duration/a.distance)} /km</b>`);
  if(a.avg_hr)sp.push(`avg <b style="color:${hrClr}">${Math.round(a.avg_hr)} bpm</b> (${ZN[zone]})`);
  if(zt&&tot>0){const ti=zt.indexOf(Math.max(...zt));sp.push(`${Math.round(zt[ti]/tot*100)}% ${ZN[ti]}`);}
- return `<div class="ac"><div class="ac-top"><div class="ac-icon" style="background:${bg}">${icon}</div><div class="ac-info"><div class="ac-name">${a.name}</div><div class="ac-meta">${a.date} · ${dist}${Math.round(a.duration)} min</div></div>${a.avg_hr?`<div class="ac-hr"><div class="ac-hrv" style="color:${hrClr}">${Math.round(a.avg_hr)}</div><div class="ac-hrl">avg bpm</div></div>`:''}</div>${bars?`<div class="ac-zbar">${bars}</div>`:''} ${a.highlight?`<div class="ac-hl"><div class="hl-s"></div><div class="hl-t">${a.highlight}</div></div>`:''} ${a.description?`<div class="ac-desc">${a.description}</div>`:''} ${a.comparison?`<div class="ac-cmp">${a.comparison}</div>`:''} ${zrows?`<div class="ac-zw">${zrows}<div class="est-note">Estimated from avg HR</div></div>`:''} ${sp.length?`<div class="ac-sum">${sp.join(' · ')}</div>`:''}</div>`;
+ return `<div class="ac"><div class="ac-top"><div class="ac-info"><div class="ac-name">${a.name}</div><div class="ac-meta">${a.date} · ${dist}${Math.round(a.duration)} min</div></div>${a.avg_hr?`<div class="ac-hr"><div class="ac-hrv" style="color:${hrClr}">${Math.round(a.avg_hr)}</div><div class="ac-hrl">avg bpm</div></div>`:''}</div>${bars?`<div class="ac-zbar">${bars}</div>`:''} ${a.highlight?`<div class="ac-hl"><div class="hl-s"></div><div class="hl-t">${a.highlight}</div></div>`:''} ${a.description?`<div class="ac-desc">${a.description}</div>`:''} ${a.comparison?`<div class="ac-cmp">${a.comparison}</div>`:''} ${zrows?`<div class="ac-zw">${zrows}<div class="est-note">Estimated from avg HR</div></div>`:''} ${sp.length?`<div class="ac-sum">${sp.join(' · ')}</div>`:''}</div>`;
 }
 
 let progChart=null;

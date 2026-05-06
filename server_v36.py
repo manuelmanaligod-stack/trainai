@@ -82,6 +82,79 @@ def classify_zone(avg_hr):
 
 def ask_groq(recent10, goals=None):
     """AI analysis with automatic fallback to second API key if first hits rate limit."""
+    lines = []
+    for i, a in enumerate(recent10):
+        sport = a.get("sport_type", "Unknown")
+        dist  = round(a.get("distance", 0) / 1000, 2)
+        dur   = round(a.get("moving_time", 0) / 60, 1)
+        hr    = a.get("average_heartrate", "N/A")
+        pace  = round(dur / dist, 2) if dist > 0 else "N/A"
+        lines.append(f'{i}. [{a.get("start_date_local","")[:10]}] {sport} "{a.get("name","")}" | {dist}km {dur}min pace:{pace} HR:{hr}')
+
+    goals_txt = ""
+    if goals:
+        gp = []
+        if goals.get("race_date") and goals.get("race_dist"):
+            gp.append(f"Next race: {goals['race_dist']} on {goals['race_date']}{(' goal: ' + goals['race_time']) if goals.get('race_time') else ''}")
+        if goals.get("weekly_km"):   gp.append(f"Weekly km goal: {goals['weekly_km']}km")
+        if goals.get("weekly_runs"): gp.append(f"Weekly runs goal: {goals['weekly_runs']}")
+        if goals.get("pr_5k_goal"):  gp.append(f"5K goal: {goals['pr_5k_goal']}")
+        if goals.get("pr_10k_goal"): gp.append(f"10K goal: {goals['pr_10k_goal']}")
+        if goals.get("pr_21k_goal"): gp.append(f"Half goal: {goals['pr_21k_goal']}")
+        if goals.get("pr_42k_goal"): gp.append(f"Marathon goal: {goals['pr_42k_goal']}")
+        if gp: goals_txt = "\n\nGoals:\n" + "\n".join(gp)
+
+    prompt = f"""Analyze these 10 most recent Strava workouts:{goals_txt}
+
+{chr(10).join(lines)}
+
+HR Zones: Z1<124(Recovery), Z2 124-154(Endurance), Z3 154-169(Tempo), Z4 169-184(Threshold), Z5 185+(Max)
+Focus on VO2 max improvement and pace improvement in your analysis and next workout recommendation.
+
+Return ONLY valid JSON (no markdown):
+{{
+  "workouts": [{{"index":0,"highlight":"one sentence what was done well (use you)","description":"2 sentences on this workout value (use you)","comparison":"compare to others (use you)"}}],
+  "summary": "3-4 sentences on these 10 workouts — volume, consistency, HR zones (use you)",
+  "analysis": "2-3 paragraphs coaching analysis focused on VO2 max and pace improvement{' referencing goals' if goals_txt else ''} (use you)",
+  "next_workout": {{"type":"Run","title":"workout name","description":"3-4 sentences recommending next workout targeting VO2 max or pace improvement (use you)"}}
+}}"""
+
+    fallback = {
+        "workouts": [],
+        "summary": "Tap Analyze again for full analysis.",
+        "analysis": "Analysis unavailable — tap Analyze again.",
+        "next_workout": {"type":"Run","title":"Tempo Intervals","description":"Run 4x1km at tempo pace (Z3) with 90s rest between."}
+    }
+
+    for key_name, api_key in [("primary", GROQ_API_KEY), ("backup", GROQ_API_KEY_2)]:
+        try:
+            print(f"[Groq] Trying {key_name} key...")
+            client = Groq(api_key=api_key)
+            resp = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=3500
+            )
+            raw = resp.choices[0].message.content.replace("```json","").replace("```","").strip()
+            raw = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', raw)
+            s, e = raw.find('{'), raw.rfind('}') + 1
+            if s >= 0 and e > s: raw = raw[s:e]
+            result = json.loads(raw)
+            if isinstance(result, dict):
+                print(f"[Groq] {key_name} key succeeded.")
+                return result
+            return fallback
+        except Exception as ex:
+            err = str(ex)
+            if "429" in err or "rate_limit" in err.lower():
+                print(f"[Groq] {key_name} key rate limited. {'Trying backup...' if key_name == 'primary' else 'Both keys exhausted.'}")
+                if key_name == "backup":
+                    raise Exception(f"Error code: {err}")
+            else:
+                print(f"[Groq] {key_name} key error: {err}")
+                return fallback
+    return fallback
+
 def read_file(path):
     with open(path) as f: return f.read()
 
