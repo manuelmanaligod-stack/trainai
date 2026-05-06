@@ -1,1 +1,1 @@
-web: python3 server_v14.py
+web: python3 server_v36.py

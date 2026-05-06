@@ -1,5 +1,5 @@
 """
-TrainAI Server v14 — Groq AI (llama-3.3-70b-versatile)
+Gear 2 Server v16 — Groq AI (llama-3.3-70b-versatile)
 """
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import json, requests, os, re
@@ -20,9 +20,9 @@ def get_access_token():
     return r.json()["access_token"]
 
 def get_all_activities(token):
-    """Fetch activities newest first — no after filter so page 1 is always most recent."""
+    """Fetch activities newest first — fetches up to 10 pages to include 2025 data."""
     all_acts = []
-    for page in range(1, 6):
+    for page in range(1, 11):
         r = requests.get("https://www.strava.com/api/v3/athlete/activities",
                          headers={"Authorization": f"Bearer {token}"},
                          params={"per_page": 30, "page": page})
@@ -154,7 +154,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-type", "text/html")
             self.end_headers()
-            self.wfile.write(read_file("app_v14.html").encode())
+            self.wfile.write(read_file("app_v31.html").encode())
         else:
             self.send_response(404); self.end_headers()
 
@@ -190,6 +190,7 @@ class Handler(BaseHTTPRequestHandler):
                         "description": wi.get("description", ""),
                         "comparison":  wi.get("comparison", ""),
                         "calories":    a.get("calories", 0),
+                        "elev":        a.get("total_elevation_gain", 0),
                     })
 
                 try:    best_efforts = get_best_efforts(token)
@@ -229,7 +230,7 @@ if __name__ == "__main__":
     try:    local_ip = socket.gethostbyname(socket.gethostname())
     except: local_ip = "localhost"
     port = int(os.environ.get("PORT", 8080))
-    print(f"\n🚀 TrainAI Server v14 — Groq llama-3.3-70b")
+    print(f"\n🚀 TrainAI Gear 2 Server v31 — Groq + 2025/2026 data")
     print(f"─" * 40)
     print(f"✅ Running on port {port}")
     print(f"📱 http://{local_ip}:{port}")

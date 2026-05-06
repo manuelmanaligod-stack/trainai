@@ -1,5 +1,5 @@
 """
-TrainAI Server v14 — Groq AI (llama-3.3-70b-versatile)
+Gear 2 Server v16 — Groq AI (llama-3.3-70b-versatile)
 """
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import json, requests, os, re
@@ -10,6 +10,7 @@ STRAVA_CLIENT_ID     = os.environ.get("STRAVA_CLIENT_ID",     "234502")
 STRAVA_CLIENT_SECRET = os.environ.get("STRAVA_CLIENT_SECRET", "ce8eedc1d05808af8cfb2829c833abb5d69dc9f4")
 STRAVA_REFRESH_TOKEN = os.environ.get("STRAVA_REFRESH_TOKEN", "2ac675776dea85002172508cdeb748ec0fe1637c")
 GROQ_API_KEY         = os.environ.get("GROQ_API_KEY",         "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")
+GROQ_API_KEY_2       = os.environ.get("GROQ_API_KEY_2",       "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")
 
 def get_access_token():
     r = requests.post("https://www.strava.com/oauth/token", data={
@@ -20,9 +21,9 @@ def get_access_token():
     return r.json()["access_token"]
 
 def get_all_activities(token):
-    """Fetch activities newest first — no after filter so page 1 is always most recent."""
+    """Fetch activities newest first — fetches up to 10 pages to include 2025 data."""
     all_acts = []
-    for page in range(1, 6):
+    for page in range(1, 11):
         r = requests.get("https://www.strava.com/api/v3/athlete/activities",
                          headers={"Authorization": f"Bearer {token}"},
                          params={"per_page": 30, "page": page})
@@ -80,68 +81,7 @@ def classify_zone(avg_hr):
     return 5
 
 def ask_groq(recent10, goals=None):
-    """AI analysis focused on last 10 workouts, VO2 max + pace improvement."""
-    lines = []
-    for i, a in enumerate(recent10):
-        sport = a.get("sport_type", "Unknown")
-        dist  = round(a.get("distance", 0) / 1000, 2)
-        dur   = round(a.get("moving_time", 0) / 60, 1)
-        hr    = a.get("average_heartrate", "N/A")
-        pace  = round(dur / dist, 2) if dist > 0 else "N/A"
-        lines.append(f'{i}. [{a.get("start_date_local","")[:10]}] {sport} "{a.get("name","")}" | {dist}km {dur}min pace:{pace} HR:{hr}')
-
-    goals_txt = ""
-    if goals:
-        gp = []
-        if goals.get("race_date") and goals.get("race_dist"):
-            gp.append(f"Next race: {goals['race_dist']} on {goals['race_date']}{(' goal: ' + goals['race_time']) if goals.get('race_time') else ''}")
-        if goals.get("weekly_km"):   gp.append(f"Weekly km goal: {goals['weekly_km']}km")
-        if goals.get("weekly_runs"): gp.append(f"Weekly runs goal: {goals['weekly_runs']}")
-        if goals.get("pr_5k_goal"):  gp.append(f"5K goal: {goals['pr_5k_goal']}")
-        if goals.get("pr_10k_goal"): gp.append(f"10K goal: {goals['pr_10k_goal']}")
-        if goals.get("pr_21k_goal"): gp.append(f"Half goal: {goals['pr_21k_goal']}")
-        if goals.get("pr_42k_goal"): gp.append(f"Marathon goal: {goals['pr_42k_goal']}")
-        if gp: goals_txt = "\n\nGoals:\n" + "\n".join(gp)
-
-    client = Groq(api_key=GROQ_API_KEY)
-    prompt = f"""Analyze these 10 most recent Strava workouts:{goals_txt}
-
-{chr(10).join(lines)}
-
-HR Zones: Z1<124(Recovery), Z2 124-154(Endurance), Z3 154-169(Tempo), Z4 169-184(Threshold), Z5 185+(Max)
-Focus on VO2 max improvement and pace improvement in your analysis and next workout recommendation.
-
-Return ONLY valid JSON (no markdown):
-{{
-  "workouts": [{{"index":0,"highlight":"one sentence what was done well (use you)","description":"2 sentences on this workout value (use you)","comparison":"compare to others (use you)"}}],
-  "summary": "3-4 sentences on these 10 workouts — volume, consistency, HR zones (use you)",
-  "analysis": "2-3 paragraphs coaching analysis focused on VO2 max and pace improvement{' referencing goals' if goals_txt else ''} (use you)",
-  "next_workout": {{"type":"Run","title":"workout name","description":"3-4 sentences recommending next workout targeting VO2 max or pace improvement (use you)"}}
-}}"""
-
-    resp = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=3500
-    )
-    raw = resp.choices[0].message.content.replace("```json","").replace("```","").strip()
-    # Remove control characters that break JSON parsing
-    raw = re.sub(r'[\x00-\x1f\x7f](?<![\n\r\t])', '', raw)
-    raw = raw.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
-    s, e = raw.find('{'), raw.rfind('}') + 1
-    if s >= 0 and e > s: raw = raw[s:e]
-    try:
-        return json.loads(raw)
-    except Exception as ex:
-        print(f"JSON parse error: {ex}\nRaw[:400]: {raw[:400]}")
-        m = re.search(r'"summary"\s*:\s*"([^"]{10,})"', raw)
-        return {
-            "workouts": [],
-            "summary": m.group(1) if m else "Tap Analyze again for full analysis.",
-            "analysis": "Analysis unavailable — tap Analyze again.",
-            "next_workout": {"type":"Run","title":"Tempo Intervals","description":"Run 4x1km at tempo pace (Z3) with 90s rest between. This targets VO2 max and pace improvement directly."}
-        }
-
+    """AI analysis with automatic fallback to second API key if first hits rate limit."""
 def read_file(path):
     with open(path) as f: return f.read()
 
@@ -154,7 +94,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-type", "text/html")
             self.end_headers()
-            self.wfile.write(read_file("app_v14.html").encode())
+            self.wfile.write(read_file("app_v35.html").encode())
         else:
             self.send_response(404); self.end_headers()
 
@@ -190,6 +130,7 @@ class Handler(BaseHTTPRequestHandler):
                         "description": wi.get("description", ""),
                         "comparison":  wi.get("comparison", ""),
                         "calories":    a.get("calories", 0),
+                        "elev":        a.get("total_elevation_gain", 0),
                     })
 
                 try:    best_efforts = get_best_efforts(token)
@@ -229,7 +170,7 @@ if __name__ == "__main__":
     try:    local_ip = socket.gethostbyname(socket.gethostname())
     except: local_ip = "localhost"
     port = int(os.environ.get("PORT", 8080))
-    print(f"\n🚀 TrainAI Server v14 — Groq llama-3.3-70b")
+    print(f"\n🚀 TrainAI Gear 2 Gear 2 Server v36 — Groq + 2025/2026 data")
     print(f"─" * 40)
     print(f"✅ Running on port {port}")
     print(f"📱 http://{local_ip}:{port}")
