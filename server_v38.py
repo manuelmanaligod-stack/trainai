@@ -1,0 +1,440 @@
+"""
+Gear 2 Server v38 — SQLite DB + Smart Sync
+- Activities stored in SQLite (survives restarts)
+- Groq only called when new workouts detected
+- Strava delta sync (only fetches new activities)
+"""
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import json, requests, os, re, time, sqlite3
+from datetime import datetime
+from groq import Groq
+
+STRAVA_CLIENT_ID     = os.environ.get("STRAVA_CLIENT_ID",     "234502")
+STRAVA_CLIENT_SECRET = os.environ.get("STRAVA_CLIENT_SECRET", "ce8eedc1d05808af8cfb2829c833abb5d69dc9f4")
+STRAVA_REFRESH_TOKEN = os.environ.get("STRAVA_REFRESH_TOKEN", "2ac675776dea85002172508cdeb748ec0fe1637c")
+GROQ_API_KEY         = os.environ.get("GROQ_API_KEY",         "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")
+GROQ_API_KEY_2       = os.environ.get("GROQ_API_KEY_2",       "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")
+DB_FILE              = os.environ.get("DB_FILE",               "gear2.db")
+AI_TTL               = 6 * 3600  # Re-run Groq if AI is older than 6hrs AND new workouts exist
+
+# ── DATABASE SETUP ────────────────────────────────────────────────────
+def get_db():
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_db():
+    with get_db() as conn:
+        conn.executescript("""
+        CREATE TABLE IF NOT EXISTS activities (
+            id          INTEGER PRIMARY KEY,
+            strava_id   INTEGER UNIQUE,
+            date        TEXT,
+            name        TEXT,
+            sport       TEXT,
+            distance    REAL,
+            duration    REAL,
+            avg_hr      REAL,
+            max_hr      REAL,
+            zone        INTEGER,
+            calories    REAL,
+            elev        REAL,
+            highlight   TEXT DEFAULT '',
+            description TEXT DEFAULT '',
+            comparison  TEXT DEFAULT '',
+            synced_at   TEXT
+        );
+        CREATE TABLE IF NOT EXISTS ai_cache (
+            id          INTEGER PRIMARY KEY CHECK (id = 1),
+            summary     TEXT,
+            analysis    TEXT,
+            next_workout TEXT,
+            created_at  REAL
+        );
+        CREATE TABLE IF NOT EXISTS best_efforts (
+            id          INTEGER PRIMARY KEY,
+            name        TEXT UNIQUE,
+            elapsed_time REAL,
+            distance    REAL,
+            date        TEXT,
+            activity    TEXT
+        );
+        CREATE TABLE IF NOT EXISTS sync_log (
+            id          INTEGER PRIMARY KEY CHECK (id = 1),
+            last_sync   REAL,
+            newest_date TEXT
+        );
+        """)
+    print("[DB] Initialized.")
+
+# ── STRAVA ────────────────────────────────────────────────────────────
+def get_access_token():
+    r = requests.post("https://www.strava.com/oauth/token", data={
+        "client_id": STRAVA_CLIENT_ID, "client_secret": STRAVA_CLIENT_SECRET,
+        "refresh_token": STRAVA_REFRESH_TOKEN, "grant_type": "refresh_token"
+    })
+    r.raise_for_status()
+    return r.json()["access_token"]
+
+def classify_zone(avg_hr):
+    if not avg_hr: return None
+    for i, (lo, hi) in enumerate([(0,124),(124,154),(154,169),(169,184),(184,999)]):
+        if lo <= avg_hr < hi: return i + 1
+    return 5
+
+def fetch_new_activities(token, after_date=None):
+    """Fetch only activities newer than after_date. If None, fetch all 2025+."""
+    all_acts = []
+    after_ts = None
+    if after_date:
+        from datetime import datetime as dt
+        after_ts = int(dt.strptime(after_date, "%Y-%m-%d").timestamp())
+
+    for page in range(1, 11):
+        params = {"per_page": 30, "page": page}
+        if after_ts: params["after"] = after_ts
+        r = requests.get("https://www.strava.com/api/v3/athlete/activities",
+                         headers={"Authorization": f"Bearer {token}"},
+                         params=params)
+        if r.status_code != 200: break
+        batch = r.json()
+        if not batch: break
+        all_acts.extend(batch)
+        oldest = batch[-1].get("start_date", "9999")
+        if not after_ts and oldest < "2025-01-01T00:00:00Z": break
+
+    all_acts.sort(key=lambda a: a.get("start_date", ""), reverse=True)
+    if not after_ts:
+        all_acts = [a for a in all_acts if a.get("start_date","") >= "2025-01-01T00:00:00Z"]
+    return all_acts
+
+def sync_activities_to_db(token, force=False):
+    """Smart sync: only fetch new activities since last sync."""
+    with get_db() as conn:
+        log = conn.execute("SELECT * FROM sync_log WHERE id=1").fetchone()
+        newest_in_db = log["newest_date"] if log else None
+
+    if force or not newest_in_db:
+        print("[Sync] Full sync from Strava...")
+        acts = fetch_new_activities(token, after_date=None)
+    else:
+        print(f"[Sync] Delta sync since {newest_in_db}...")
+        acts = fetch_new_activities(token, after_date=newest_in_db)
+
+    if not acts:
+        print("[Sync] No new activities.")
+        return 0
+
+    saved = 0
+    with get_db() as conn:
+        for a in acts:
+            avg_hr = a.get("average_heartrate")
+            try:
+                conn.execute("""
+                    INSERT OR REPLACE INTO activities
+                    (strava_id,date,name,sport,distance,duration,avg_hr,max_hr,zone,calories,elev,synced_at)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                """, (
+                    a["id"],
+                    a.get("start_date_local","")[:10],
+                    a.get("name","Unknown"),
+                    a.get("sport_type","Unknown"),
+                    round(a.get("distance",0)/1000, 2),
+                    round(a.get("moving_time",0)/60, 1),
+                    avg_hr,
+                    a.get("max_heartrate"),
+                    classify_zone(avg_hr),
+                    a.get("calories",0),
+                    a.get("total_elevation_gain",0),
+                    datetime.now().isoformat()
+                ))
+                saved += 1
+            except: pass
+
+        # Update sync log
+        newest = acts[0].get("start_date_local","")[:10] if acts else newest_in_db
+        conn.execute("""
+            INSERT OR REPLACE INTO sync_log (id, last_sync, newest_date)
+            VALUES (1, ?, ?)
+        """, (time.time(), newest))
+
+    print(f"[Sync] Saved {saved} activities. Newest: {newest}")
+    return saved
+
+def get_activities_from_db():
+    """Return all activities sorted newest first."""
+    with get_db() as conn:
+        rows = conn.execute("""
+            SELECT * FROM activities
+            WHERE date >= '2025-01-01'
+            ORDER BY date DESC, strava_id DESC
+        """).fetchall()
+    return [dict(r) for r in rows]
+
+def get_best_efforts_from_db(token):
+    """Fetch best efforts from last 10 runs, store in DB."""
+    with get_db() as conn:
+        existing = conn.execute("SELECT COUNT(*) as n FROM best_efforts").fetchone()["n"]
+        if existing > 0:
+            rows = conn.execute("SELECT * FROM best_efforts").fetchall()
+            return [dict(r) for r in rows]
+
+    # First time — fetch from Strava
+    try:
+        all_efforts = {}
+        r = requests.get("https://www.strava.com/api/v3/athlete/activities",
+                         headers={"Authorization": f"Bearer {token}"},
+                         params={"per_page": 30, "page": 1})
+        if r.status_code != 200: return []
+        runs = [a for a in r.json() if a.get("sport_type") == "Run"][:10]
+
+        for run in runs:
+            detail = requests.get(f"https://www.strava.com/api/v3/activities/{run['id']}",
+                                   headers={"Authorization": f"Bearer {token}"})
+            if detail.status_code != 200: continue
+            for effort in detail.json().get("best_efforts", []):
+                name = effort.get("name","")
+                elapsed = effort.get("elapsed_time",0)
+                if name not in all_efforts or elapsed < all_efforts[name]["elapsed_time"]:
+                    all_efforts[name] = {
+                        "name": name, "elapsed_time": elapsed,
+                        "distance": effort.get("distance",0),
+                        "date": effort.get("start_date_local","")[:10],
+                        "activity": run.get("name","")
+                    }
+
+        with get_db() as conn:
+            for e in all_efforts.values():
+                conn.execute("""
+                    INSERT OR REPLACE INTO best_efforts (name,elapsed_time,distance,date,activity)
+                    VALUES (?,?,?,?,?)
+                """, (e["name"],e["elapsed_time"],e["distance"],e["date"],e["activity"]))
+
+        return list(all_efforts.values())
+    except Exception as ex:
+        print(f"[BestEfforts] Error: {ex}")
+        return []
+
+# ── AI CACHE ──────────────────────────────────────────────────────────
+def get_ai_cache():
+    with get_db() as conn:
+        row = conn.execute("SELECT * FROM ai_cache WHERE id=1").fetchone()
+        return dict(row) if row else None
+
+def save_ai_cache(summary, analysis, next_workout):
+    with get_db() as conn:
+        conn.execute("""
+            INSERT OR REPLACE INTO ai_cache (id, summary, analysis, next_workout, created_at)
+            VALUES (1, ?, ?, ?, ?)
+        """, (summary, analysis, json.dumps(next_workout), time.time()))
+
+def ai_cache_age():
+    cache = get_ai_cache()
+    if not cache: return float("inf")
+    return time.time() - cache["created_at"]
+
+# ── GROQ AI ───────────────────────────────────────────────────────────
+def ask_groq(recent10, goals=None):
+    lines = []
+    for i, a in enumerate(recent10):
+        dist = a.get("distance",0)
+        dur  = a.get("duration",0)
+        pace = round(dur/dist, 2) if dist > 0 else "N/A"
+        lines.append(f'{i}. [{a.get("date","")}] {a.get("sport","")} "{a.get("name","")} | {dist}km {dur}min pace:{pace} HR:{a.get("avg_hr","N/A")}')
+
+    goals_txt = ""
+    if goals:
+        gp = []
+        if goals.get("race_date") and goals.get("race_dist"):
+            gp.append(f"Next race: {goals['race_dist']} on {goals['race_date']}{(' goal: ' + goals['race_time']) if goals.get('race_time') else ''}")
+        if goals.get("weekly_km"):   gp.append(f"Weekly km goal: {goals['weekly_km']}km")
+        if goals.get("weekly_runs"): gp.append(f"Weekly runs goal: {goals['weekly_runs']}")
+        if gp: goals_txt = "\n\nGoals:\n" + "\n".join(gp)
+
+    prompt = f"""Analyze these 10 most recent workouts:{goals_txt}
+
+{chr(10).join(lines)}
+
+HR Zones: Z1<124(Recovery), Z2 124-154(Endurance), Z3 154-169(Tempo), Z4 169-184(Threshold), Z5 185+(Max)
+Focus on VO2 max improvement and pace improvement.
+
+Return ONLY valid JSON (no markdown):
+{{
+  "workouts": [{{"index":0,"highlight":"one sentence (use you)","description":"2 sentences (use you)","comparison":"compare to others (use you)"}}],
+  "summary": "3-4 sentences on volume, consistency, HR zones (use you)",
+  "analysis": "2-3 paragraphs on VO2 max and pace improvement{" referencing goals" if goals_txt else ""} (use you)",
+  "next_workout": {{"type":"Run","title":"workout name","description":"3-4 sentences (use you)"}}
+}}"""
+
+    fallback = {
+        "workouts": [], "summary": "Tap Analyze again.",
+        "analysis": "Analysis unavailable.", 
+        "next_workout": {"type":"Run","title":"Tempo Run","description":"4x1km at threshold pace with 90s rest."}
+    }
+
+    for key_name, api_key in [("primary", GROQ_API_KEY), ("backup", GROQ_API_KEY_2)]:
+        try:
+            print(f"[Groq] Trying {key_name} key...")
+            client = Groq(api_key=api_key)
+            resp = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role":"user","content":prompt}],
+                max_tokens=3500
+            )
+            raw = resp.choices[0].message.content.replace("```json","").replace("```","").strip()
+            raw = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', raw)
+            s, e = raw.find('{'), raw.rfind('}') + 1
+            if s >= 0 and e > s: raw = raw[s:e]
+            result = json.loads(raw)
+            if isinstance(result, dict):
+                print(f"[Groq] {key_name} succeeded.")
+                return result
+            return fallback
+        except Exception as ex:
+            err = str(ex)
+            if "429" in err or "rate_limit" in err.lower():
+                print(f"[Groq] {key_name} rate limited. {'Trying backup...' if key_name == 'primary' else 'Both exhausted.'}")
+                if key_name == "backup": raise Exception(f"Error code: {err}")
+            else:
+                print(f"[Groq] {key_name} error: {err}")
+                return fallback
+    return fallback
+
+def update_activity_ai(workouts_ai):
+    """Store AI highlights back into the activities table."""
+    with get_db() as conn:
+        for w in workouts_ai:
+            idx = w.get("index")
+            if idx is None: continue
+            # Get the idx-th activity
+            row = conn.execute(
+                "SELECT strava_id FROM activities WHERE date >= '2025-01-01' ORDER BY date DESC, strava_id DESC LIMIT 1 OFFSET ?",
+                (idx,)
+            ).fetchone()
+            if row:
+                conn.execute("""
+                    UPDATE activities SET highlight=?, description=?, comparison=?
+                    WHERE strava_id=?
+                """, (w.get("highlight",""), w.get("description",""), w.get("comparison",""), row["strava_id"]))
+
+def read_file(path):
+    with open(path) as f: return f.read()
+
+class Handler(BaseHTTPRequestHandler):
+    def log_message(self, fmt, *args):
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] {args[0]} {args[1]}")
+
+    def do_GET(self):
+        if self.path in ("/", "/index.html"):
+            self.send_response(200)
+            self.send_header("Content-type", "text/html")
+            self.end_headers()
+            self.wfile.write(read_file("app_v35.html").encode())
+        else:
+            self.send_response(404); self.end_headers()
+
+    def do_POST(self):
+        if self.path == "/analyze":
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                body   = self.rfile.read(length) if length else b'{}'
+                try:    payload = json.loads(body)
+                except: payload = {}
+                goals         = payload.get("goals", {})
+                force_refresh = payload.get("force_refresh", False)
+
+                token = get_access_token()
+
+                # Smart sync: check for new activities
+                new_count = sync_activities_to_db(token, force=force_refresh)
+                all_acts  = get_activities_from_db()
+                recent10  = all_acts[:10]
+
+                # Decide whether to call Groq
+                cache_age = ai_cache_age()
+                has_new   = new_count > 0
+                need_ai   = force_refresh or has_new or cache_age > AI_TTL
+
+                if need_ai:
+                    reason = "force refresh" if force_refresh else f"{new_count} new workouts" if has_new else f"AI cache {int(cache_age/3600)}h old"
+                    print(f"[AI] Running Groq ({reason})...")
+                    ai = ask_groq(recent10, goals)
+                    save_ai_cache(ai.get("summary",""), ai.get("analysis",""), ai.get("next_workout",{}))
+                    update_activity_ai(ai.get("workouts",[]))
+                else:
+                    print(f"[AI] Skipping Groq — no new workouts, cache {int(cache_age/60)}m old.")
+                    cached_ai = get_ai_cache()
+                    ai = {
+                        "summary":      cached_ai["summary"],
+                        "analysis":     cached_ai["analysis"],
+                        "next_workout": json.loads(cached_ai["next_workout"]),
+                        "workouts":     []
+                    }
+
+                # Reload activities with updated AI highlights
+                all_acts = get_activities_from_db()
+
+                activity_list = []
+                for a in all_acts:
+                    activity_list.append({
+                        "id":          a["strava_id"],
+                        "date":        a["date"],
+                        "name":        a["name"],
+                        "sport":       a["sport"],
+                        "distance":    a["distance"],
+                        "duration":    a["duration"],
+                        "avg_hr":      a["avg_hr"],
+                        "max_hr":      a["max_hr"],
+                        "zone":        a["zone"],
+                        "highlight":   a.get("highlight",""),
+                        "description": a.get("description",""),
+                        "comparison":  a.get("comparison",""),
+                        "calories":    a["calories"],
+                        "elev":        a["elev"],
+                    })
+
+                try:    best_efforts = get_best_efforts_from_db(token)
+                except: best_efforts = []
+
+                runs = [a for a in all_acts if a["sport"] == "Run"]
+                wts  = [a for a in all_acts if a["sport"] == "WeightTraining"]
+
+                result = {
+                    "success":      True,
+                    "activities":   activity_list,
+                    "summary":      ai.get("summary",""),
+                    "analysis":     ai.get("analysis",""),
+                    "next_workout": ai.get("next_workout",{}),
+                    "best_efforts": best_efforts,
+                    "stats": {
+                        "total_runs":       len(runs),
+                        "total_km":         round(sum(a["distance"] for a in runs), 1),
+                        "total_activities": len(all_acts),
+                        "weight_sessions":  len(wts),
+                    }
+                }
+
+            except Exception as e:
+                import traceback
+                result = {"success": False, "error": str(e), "trace": traceback.format_exc()}
+
+            body_out = json.dumps(result).encode()
+            self.send_response(200)
+            self.send_header("Content-type", "application/json")
+            self.send_header("Content-Length", len(body_out))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(body_out)
+
+if __name__ == "__main__":
+    import socket
+    init_db()
+    try:    local_ip = socket.gethostbyname(socket.gethostname())
+    except: local_ip = "localhost"
+    port = int(os.environ.get("PORT", 8080))
+    print(f"\n Gear 2 Server v38 — SQLite + Smart Sync")
+    print(f"─" * 40)
+    print(f"✅ Running on port {port}")
+    print(f"📱 http://{local_ip}:{port}")
+    print(f"─" * 40)
+    HTTPServer(("0.0.0.0", port), Handler).serve_forever()
