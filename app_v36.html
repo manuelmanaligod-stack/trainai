@@ -704,11 +704,16 @@ canvas{width:100%!important;}
  <div class="pz-tab" onclick="setZoneMode('pace',this)">Pace</div>
  </div>
  </div>
- <div class="stabs" id="hrTabs" style="padding:0 13px 8px;gap:6px;flex-wrap:wrap;">
+ <div class="stabs" id="hrTabs" style="padding:0 13px 8px;gap:6px;flex-wrap:wrap;align-items:center;">
  <div class="stab active" onclick="setHrTab('thisweek',this)">This Week</div>
  <div class="stab" onclick="setHrTab('2026',this)">2026</div>
  <div class="stab" onclick="setHrTab('2025',this)">2025</div>
  <div class="stab" onclick="setHrTab('all',this)">All Time</div>
+ <!-- Month dropdown -->
+ <div style="position:relative;" id="hrMonthDropWrap">
+   <div class="stab" id="hrMonthDropBtn" onclick="toggleHrMonthDrop()" style="cursor:pointer;">Month ▾</div>
+   <div id="hrMonthDrop" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:#fff;border:1px solid #ebebeb;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.1);z-index:200;min-width:110px;max-height:220px;overflow-y:auto;padding:4px 0;"></div>
+ </div>
  </div>
  <div id="hrZones" style="padding:0 13px 13px;"></div>
  </div>
@@ -978,16 +983,42 @@ function renderOverview(){
 }
 
 function buildHrMonthTabs(){
- const tabs=document.getElementById('hrTabs');
- tabs.querySelectorAll('.dyn').forEach(t=>t.remove());
+ const drop=document.getElementById('hrMonthDrop');
+ if(!drop)return;
+ drop.innerHTML='';
  const months=[...new Set(allActs.map(a=>a.date.slice(0,7)))].sort().reverse();
  months.forEach(ym=>{
- const[y,m]=ym.split('-');
- const lbl=new Date(y,m-1).toLocaleDateString('en-US',{month:'short',year:'2-digit'});
- const b=document.createElement('div');b.className='stab dyn';b.textContent=lbl;
- b.onclick=()=>{document.querySelectorAll('#hrTabs .stab').forEach(t=>t.classList.remove('active'));b.classList.add('active');hrTab='m_'+ym;renderHrZones(hrTab);};
- tabs.appendChild(b);
+  const[y,mo]=ym.split('-');
+  const lbl=new Date(y,mo-1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  const item=document.createElement('div');
+  item.textContent=lbl;
+  item.style.cssText='padding:8px 14px;font-size:13px;cursor:pointer;white-space:nowrap;color:#1a1a1a;';
+  item.onmouseenter=()=>item.style.background='#f5f5f0';
+  item.onmouseleave=()=>item.style.background='';
+  item.onclick=()=>{
+   document.querySelectorAll('#hrTabs .stab').forEach(t=>t.classList.remove('active'));
+   document.getElementById('hrMonthDropBtn').classList.add('active');
+   document.getElementById('hrMonthDropBtn').textContent=new Date(y,mo-1).toLocaleDateString('en-US',{month:'short',year:'2-digit'})+' ▾';
+   hrTab='m_'+ym;
+   renderHrZones(hrTab);
+   document.getElementById('hrMonthDrop').style.display='none';
+  };
+  drop.appendChild(item);
  });
+}
+function toggleHrMonthDrop(){
+ const drop=document.getElementById('hrMonthDrop');
+ if(!drop)return;
+ const isOpen=drop.style.display!=='none';
+ drop.style.display=isOpen?'none':'block';
+ if(!isOpen){
+  // close on outside click
+  setTimeout(()=>document.addEventListener('click',function h(e){
+   if(!document.getElementById('hrMonthDropWrap')?.contains(e.target)){
+    drop.style.display='none';document.removeEventListener('click',h);
+   }
+  }),0);
+ }
 }
 
 function setZoneMode(mode,el){
@@ -1234,7 +1265,12 @@ function renderWeeklyPlan(){
 
 function setHrTab(tab,el){
  document.querySelectorAll('#hrTabs .stab').forEach(t=>t.classList.remove('active'));
- el.classList.add('active');hrTab=tab;renderHrZones(tab);
+ el.classList.add('active');hrTab=tab;
+ // Reset dropdown button label when a static tab is chosen
+ const btn=document.getElementById('hrMonthDropBtn');
+ if(btn)btn.textContent='Month ▾';
+ document.getElementById('hrMonthDrop').style.display='none';
+ renderHrZones(tab);
 }
 
 function renderHrZones(tab){
@@ -1242,6 +1278,7 @@ function renderHrZones(tab){
  if(tab==='thisweek'){acts=allActs.filter(a=>a.date>=getMon()&&a.date<=getSun());badge='This Week';}
  else if(tab==='2026'){acts=allActs.filter(a=>a.date.startsWith('2026'));badge='2026';}
  else if(tab==='2025'){acts=allActs.filter(a=>a.date.startsWith('2025'));badge='2025';}
+ else if(tab.startsWith('m_')){const ym=tab.slice(2);acts=allActs.filter(a=>a.date&&a.date.startsWith(ym));const[y,m]=ym.split('-');badge=new Date(y,m-1).toLocaleDateString('en-US',{month:'long',year:'numeric'});}
  else{acts=allActs;badge='All Time';}
  document.getElementById('hrBadge').textContent=badge;
 
@@ -1413,6 +1450,7 @@ function renderProgressChart(){
 // ── STATS ─────────────────────────────────────────────────────────────
 function renderStats(){
  renderStravaStats(totalsYear, totalsStatSport);
+ buildHrMonthTabs();
  renderHrZones(hrTab);
 }
 
