@@ -72,7 +72,7 @@ body{background:#f5f5f0;color:#1a1a1a;font-family:'DM Sans',sans-serif;min-heigh
 .zr-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
 .zr-name{font-size:11px;color:#888;width:70px;flex-shrink:0;}
 .zr-range{font-size:10px;color:#ccc;width:58px;flex-shrink:0;}
-.zr-track{flex:1;height:9px;background:#f0ede8;border-radius:5px;overflow:hidden;}
+.zr-track{flex:1;height:14px;background:#f0ede8;border-radius:5px;overflow:hidden;}
 .zr-fill{height:100%;border-radius:5px;}
 .zr-time{font-size:11px;font-weight:500;color:#444;width:36px;text-align:right;flex-shrink:0;}
 .zr-pct{font-size:10px;color:#bbb;width:26px;text-align:right;flex-shrink:0;}
@@ -114,7 +114,7 @@ body{background:#f5f5f0;color:#1a1a1a;font-family:'DM Sans',sans-serif;min-heigh
 .azr-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
 .azr-name{font-size:10px;color:#aaa;width:66px;flex-shrink:0;}
 .azr-range{font-size:9px;color:#ddd;width:54px;flex-shrink:0;}
-.azr-track{flex:1;height:6px;background:#f0ede8;border-radius:3px;overflow:hidden;}
+.azr-track{flex:1;height:11px;background:#f0ede8;border-radius:3px;overflow:hidden;}
 .azr-fill{height:100%;border-radius:3px;}
 .azr-time{font-size:10px;font-weight:500;color:#555;width:28px;text-align:right;flex-shrink:0;}
 .azr-pct{font-size:10px;color:#ccc;width:22px;text-align:right;flex-shrink:0;}
@@ -125,7 +125,7 @@ body{background:#f5f5f0;color:#1a1a1a;font-family:'DM Sans',sans-serif;min-heigh
 .ac-stat-cell:last-child{border-right:none;}
 .ac-stat-val{font-size:14px;font-weight:700;color:#1a1a1a;line-height:1;}
 .ac-stat-lbl{font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:.3px;margin-top:2px;}
-.ac-type{display:inline-block;font-size:9px;font-weight:600;padding:2px 7px;border-radius:6px;margin-top:3px;background:#fdf0f4;color:#C0365A;letter-spacing:.2px;}
+.ac-type{display:inline-block;font-size:9px;font-weight:600;padding:2px 7px;border-radius:6px;margin-top:3px;background:#1a1a1a;color:#fff;letter-spacing:.2px;}
 .pgrow{display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 0;}
 .pgbtn{background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:6px 14px;font-size:12px;color:#555;cursor:pointer;}
 .pgbtn:disabled{opacity:.35;cursor:not-allowed;}
@@ -451,7 +451,7 @@ canvas{width:100%!important;}
  .zr-range{font-size:11px;width:72px;}
  .zr-time{font-size:13px;width:44px;}
  .zr-pct{font-size:11px;width:34px;}
- .zr-track{height:12px;}
+ .zr-track{height:16px;}
  .zr-dot{width:10px;height:10px;}
  .zlbl{font-size:11px;letter-spacing:1px;}
  .zw{padding:16px 20px 18px;}
@@ -1136,12 +1136,18 @@ function renderRaceCountdown(thisWeek,wRuns,wKm){
  const wMins=thisWeek?Math.round(thisWeek.reduce((s,a)=>s+a.duration,0)):0;
  const weekCount=thisWeek?thisWeek.length:0;
 
+ function ring(val,goal,label,clr){
+   const pct=goal>0?Math.min(val/goal,1):0;
+   const r=38,circ=+(2*Math.PI*r).toFixed(1),offset=+(circ*(1-pct)).toFixed(1);
+   const c=(goal>0&&val>=goal)?'#4cd964':clr;
+   const display=Number.isInteger(val)?val:val.toFixed(1);
+   return `<div style="text-align:center;flex:1;"><svg width="90" height="90" viewBox="0 0 90 90"><circle cx="45" cy="45" r="${r}" fill="none" stroke="#f0ede8" stroke-width="9"/><circle cx="45" cy="45" r="${r}" fill="none" stroke="${c}" stroke-width="9" stroke-dasharray="${circ}" stroke-dashoffset="${offset}" stroke-linecap="round" transform="rotate(-90 45 45)"/><text x="45" y="43" text-anchor="middle" font-size="17" font-weight="700" fill="#1a1a1a" font-family="DM Sans,sans-serif">${display}</text><text x="45" y="57" text-anchor="middle" font-size="9" fill="#bbb" font-family="DM Sans,sans-serif">GOAL ${goal} ${label}</text></svg></div>`;
+ }
  const weekProgress=`
  <div style="border-top:1px solid #f0ede8;padding:12px 0 0;margin-top:12px;">
  <div style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">This Week's Progress</div>
- ${wGoalKm>0?`<div class="gp-row"><div class="gp-top"><span class="gp-name"> km</span><span class="gp-val">${wKmVal.toFixed(1)} / ${wGoalKm}</span></div><div class="gp-track"><div class="gp-fill${wKmVal>=wGoalKm?' done':''}" style="width:${Math.min(wKmVal/wGoalKm*100,100)}%"></div></div></div>`:''}
- ${wGoalRuns>0?`<div class="gp-row"><div class="gp-top"><span class="gp-name"> runs</span><span class="gp-val">${wRunCount} / ${wGoalRuns}</span></div><div class="gp-track"><div class="gp-fill${wRunCount>=wGoalRuns?' done':''}" style="width:${Math.min(wRunCount/wGoalRuns*100,100)}%"></div></div></div>`:''}
- <div style="font-size:11px;color:#888;margin-top:4px;">⏱️ ${wMins} min active · ${weekCount} workouts this week</div>
+ ${(wGoalKm>0||wGoalRuns>0)?`<div style="display:flex;gap:8px;justify-content:center;">${wGoalKm>0?ring(wKmVal,wGoalKm,'KM','#C0365A'):''}${wGoalRuns>0?ring(wRunCount,wGoalRuns,'Runs','#C0365A'):''}</div>`:''}
+ <div style="font-size:11px;color:#888;margin-top:6px;text-align:center;">${wMins} min active · ${weekCount} workouts this week</div>
  </div>`;
 
  document.getElementById('raceWrap').innerHTML=`
@@ -1271,16 +1277,16 @@ function renderHrZones(tab){
  runs.forEach(a=>{const ez=estimatePaceZones(a.duration/a.distance,a.duration,a.sport);if(ez)ez.forEach((t,i)=>totals[i]+=t);});
  const grand=totals.reduce((s,t)=>s+t,0)||1,maxT=Math.max(...totals,1);
  document.getElementById('hrZones').innerHTML=`<div class="zlbl">Time in each pace zone · runs only</div>`+
- totals.map((t,i)=>{const pct=Math.round(t/grand*100),bw=Math.round(t/maxT*100);
- return `<div class="zrow"><div class="zr-dot" style="background:${PZC[i]}"></div><div class="zr-name">Z${i+1} ${PZN[i]}</div><div class="zr-range">${PZR[i]}</div><div class="zr-track"><div class="zr-fill" style="width:${bw}%;background:${PZC[i]}"></div></div><div class="zr-time">${fmtT2(t)}</div><div class="zr-pct">${pct}%</div></div>`;
+ totals.map((t,i)=>{const pct=Math.round(t/grand*100);
+ return `<div class="zrow"><div class="zr-dot" style="background:${PZC[i]}"></div><div class="zr-name">Z${i+1} ${PZN[i]}</div><div class="zr-range">${PZR[i]}</div><div class="zr-track"><div class="zr-fill" style="width:${pct}%;background:${PZC[i]}"></div></div><div class="zr-time">${fmtT2(t)}</div><div class="zr-pct">${pct}%</div></div>`;
  }).join('');
  } else {
  const totals=[0,0,0,0,0];
  acts.forEach(a=>{const e=estimateZones(a.avg_hr,a.duration,a.sport);if(e)e.forEach((t,i)=>totals[i]+=t);});
  const grand=totals.reduce((s,t)=>s+t,0)||1,maxT=Math.max(...totals,1);
  document.getElementById('hrZones').innerHTML=`<div class="zlbl">Time in each zone</div>`+
- totals.map((t,i)=>{const pct=Math.round(t/grand*100),bw=Math.round(t/maxT*100);
- return `<div class="zrow"><div class="zr-dot" style="background:${ZC[i]}"></div><div class="zr-name">Z${i+1} ${ZN[i]}</div><div class="zr-range">${ZR[i]} bpm</div><div class="zr-track"><div class="zr-fill" style="width:${bw}%;background:${ZC[i]}"></div></div><div class="zr-time">${fmtT2(t)}</div><div class="zr-pct">${pct}%</div></div>`;
+ totals.map((t,i)=>{const pct=Math.round(t/grand*100);
+ return `<div class="zrow"><div class="zr-dot" style="background:${ZC[i]}"></div><div class="zr-name">Z${i+1} ${ZN[i]}</div><div class="zr-range">${ZR[i]} bpm</div><div class="zr-track"><div class="zr-fill" style="width:${pct}%;background:${ZC[i]}"></div></div><div class="zr-time">${fmtT2(t)}</div><div class="zr-pct">${pct}%</div></div>`;
  }).join('');
  }
 }
@@ -1385,7 +1391,7 @@ function acHtml(a){
  const zt=estimateZones(a.avg_hr,a.duration,a.sport);
  const tot=zt?zt.reduce((s,t)=>s+t,0):0,maxT=zt?Math.max(...zt,1):1;
  const bars=zt&&tot>0?zt.map((t,i)=>{const p=t/tot*100;return p>0.5?`<div class="ac-zseg" style="flex:${p};background:${ZC[i]}"></div>`:''}).join(''):'';
- const zrows=zt&&tot>0?zt.map((t,i)=>{if(t<30)return '';const p=Math.round(t/tot*100),bw=Math.round(t/maxT*100);return `<div class="azr"><div class="azr-dot" style="background:${ZC[i]}"></div><div class="azr-name">Z${i+1} ${ZN[i]}</div><div class="azr-range">${ZR[i]} bpm</div><div class="azr-track"><div class="azr-fill" style="width:${bw}%;background:${ZC[i]}"></div></div><div class="azr-time">${fmtT2(t)}</div><div class="azr-pct">${p}%</div></div>`;}).filter(Boolean).join(''):'';
+ const zrows=zt&&tot>0?zt.map((t,i)=>{if(t<30)return '';const p=Math.round(t/tot*100);return `<div class="azr"><div class="azr-dot" style="background:${ZC[i]}"></div><div class="azr-name">Z${i+1} ${ZN[i]}</div><div class="azr-range">${ZR[i]} bpm</div><div class="azr-track"><div class="azr-fill" style="width:${p}%;background:${ZC[i]}"></div></div><div class="azr-time">${fmtT2(t)}</div><div class="azr-pct">${p}%</div></div>`;}).filter(Boolean).join(''):'';
  const isPR=prIds.has(a.id);
  const domZoneIdx=zt&&tot>0?zt.indexOf(Math.max(...zt)):-1;
  const domZone=domZoneIdx>=0&&a.avg_hr?ZN[domZoneIdx]:'';
@@ -1619,8 +1625,9 @@ function renderHistChart(){
  const ctx=chart.ctx,fontSize=Math.max(7,Math.min(10,260/Math.max(keys.length,1)));
  chart.data.datasets.forEach((_,i)=>{chart.getDatasetMeta(i).data.forEach((bar,j)=>{const v=chart.data.datasets[i].data[j];if(!v||v<0.1)return;ctx.save();ctx.fillStyle='#444';ctx.font=`bold ${fontSize}px DM Sans,sans-serif`;ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText(v,bar.x,bar.y-2);ctx.restore();});});
  }};
+ const lineClr=histSport!=='all'?(sportClrs[histSport]||'#C0365A'):'#C0365A';
  if(histChart)histChart.destroy();
- histChart=new Chart(cv.getContext('2d'),{type:'bar',data:{labels,datasets:[{data:vals,backgroundColor:colors,borderRadius:4,borderSkipped:false}]},options:{responsive:true,layout:{padding:{top:18}},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.parsed.y} ${units[histMetric]}`}}},scales:{x:{grid:{display:false},ticks:{font:{size:9},color:'#bbb',maxTicksLimit:16,maxRotation:45}},y:{grid:{color:'#f5f5f5'},ticks:{font:{size:10},color:'#bbb'}}}},plugins:[labelPlugin]});
+ histChart=new Chart(cv.getContext('2d'),{type:'line',data:{labels,datasets:[{data:vals,borderColor:lineClr,backgroundColor:lineClr+'22',borderWidth:2.5,pointRadius:3,pointBackgroundColor:lineClr,pointHoverRadius:5,tension:0.35,fill:true}]},options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.parsed.y} ${units[histMetric]}`}}},scales:{x:{grid:{display:false},ticks:{font:{size:9},color:'#bbb',maxTicksLimit:16,maxRotation:45}},y:{grid:{color:'#f5f5f5'},ticks:{font:{size:10},color:'#bbb'}}}}});
 }
 
 function renderHrEfficiency(){
