@@ -580,31 +580,35 @@ canvas{width:100%!important;}
 
 <!-- ═══ OVERVIEW ═══ -->
 <div id="tab-overview">
- <!-- Readiness Score -->
- <div class="card" id="readinessCard" style="display:none;margin-top:10px;">
- <div class="card-hdr"><div class="card-title">Today's Readiness</div><div class="card-badge" id="readinessBadge">—</div></div>
- <div class="readiness-wrap">
- <div class="readiness-ring-row">
- <div class="readiness-ring">
- <svg width="72" height="72" viewBox="0 0 72 72">
- <circle cx="36" cy="36" r="30" fill="none" stroke="#f0ede8" stroke-width="7"/>
- <circle id="readinessArc" cx="36" cy="36" r="30" fill="none" stroke="#4cd964" stroke-width="7" stroke-linecap="round" stroke-dasharray="188.5" stroke-dashoffset="188.5"/>
- </svg>
- <div class="readiness-ring-val"><div class="readiness-score" id="readinessScore">—</div><div class="readiness-lbl">/ 100</div></div>
- </div>
- <div class="readiness-right">
- <div class="readiness-status" id="readinessStatus">Loading…</div>
- <div class="readiness-msg" id="readinessMsg"></div>
- </div>
- </div>
- <div class="readiness-bars" id="readinessBars"></div>
- </div>
+ <!-- Race Countdown (crimson, no card class) -->
+ <div id="raceCard" style="display:none;margin:10px 14px 0;border-radius:14px;overflow:hidden;background:#C0365A;"></div>
+
+ <!-- Progress chart -->
+ <div class="card" id="ovProgressCard" style="display:none;margin-top:10px;">
+  <div class="card-hdr">
+    <div class="card-title">Progress</div>
+    <div class="card-badge" id="ovProgressBadge">—</div>
+  </div>
+  <div style="padding:8px 13px 0;">
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px;" id="ovProgressFilter">
+      <div class="hist-btn active" onclick="setOvSport('Run',this)">Run</div>
+      <div class="hist-btn" onclick="setOvSport('Walk',this)">Walk</div>
+      <div class="hist-btn" onclick="setOvSport('Ride',this)">Ride</div>
+      <div class="hist-btn" onclick="setOvSport('WeightTraining',this)">Strength</div>
+      <div class="hist-btn" onclick="setOvSport('Swim',this)">Swim</div>
+    </div>
+    <canvas id="ovProgressChart" height="120"></canvas>
+  </div>
+  <div style="font-size:10px;color:#bbb;text-align:center;padding:4px 0 10px;" id="ovProgressSummary"></div>
  </div>
 
- <!-- AI Coach — right after readiness -->
- <div class="card" id="aiCard" style="display:none">
- <div class="card-hdr"><div class="card-title">AI Coaching</div><div class="card-badge">VO2 max · pace focus</div></div>
- <div class="ai-body" id="aiBodyOv"></div>
+ <!-- Week Progress rings -->
+ <div class="card" id="weekProgressCard" style="display:none;margin-top:10px;"></div>
+
+ <!-- Weekly Training Plan (with AI inside) -->
+ <div class="card" id="wplanCard" style="display:none;">
+ <div class="card-hdr"><div class="card-title" style="color:#C0365A;letter-spacing:.6px;">This Week's Training Plan</div><div class="card-badge" id="wplanBadge">AI · 21K prep</div></div>
+ <div class="wplan-wrap" id="wplanBody"></div>
  </div>
 
  <!-- Latest Activity -->
@@ -613,16 +617,8 @@ canvas{width:100%!important;}
  <div id="latestBody"></div>
  </div>
 
- <!-- Race Countdown -->
- <div class="card" id="raceCard" style="display:none;">
- <div class="card-hdr"><div class="card-title">Race Countdown</div><div class="card-badge" id="racePhaseBadge">—</div></div>
- <div class="rc-wrap" id="raceWrap"></div>
- </div>
- <!-- Weekly Training Plan -->
- <div class="card" id="wplanCard" style="display:none;">
- <div class="card-hdr"><div class="card-title" style="color:#C0365A;letter-spacing:.6px;">This Week's Training Plan</div><div class="card-badge" id="wplanBadge">AI · 21K prep</div></div>
- <div class="wplan-wrap" id="wplanBody"></div>
- </div>
+ <!-- AI body placeholder kept so JS doesn't break -->
+ <div class="ai-body" id="aiBodyOv" style="display:none;"></div>
 
 </div>
 
@@ -678,8 +674,9 @@ canvas{width:100%!important;}
  <div class="totals-year-pick" id="totalsYearPick" style="padding:0 0 8px;">
  <div class="typ-btn active" onclick="setTotalsYear('2026',this)">2026</div>
  <div class="typ-btn" onclick="setTotalsYear('2025',this)">2025</div>
- <div class="typ-btn" onclick="setTotalsYear('all',this)">All-Time</div>
  </div>
+ <!-- Strava-style stats -->
+ <div id="stravaStats" style="padding:10px 13px 0;"></div>
  <div id="totalsGrid" style="margin:0 -13px 10px;"></div>
  <!-- Activity Breakdown pills -->
  <div id="actBreakdown" style="margin-bottom:10px;"></div>
@@ -691,62 +688,8 @@ canvas{width:100%!important;}
  <div class="hist-btn" onclick="setHistSport('WeightTraining',this)"><span style="display:inline-flex;align-items:center;width:13px;height:13px;margin-right:4px;flex-shrink:0;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4v16M18 4v16"/><path d="M3 8h3M3 16h3M18 8h3M18 16h3"/><path d="M6 12h12"/></svg></span>Strength</div>
  <div class="hist-btn" onclick="setHistSport('Ride',this)"><span style="display:inline-flex;align-items:center;width:13px;height:13px;margin-right:4px;flex-shrink:0;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18.5" cy="17.5" r="3"/><circle cx="5.5" cy="17.5" r="3"/><circle cx="15" cy="5" r="1.2" fill="currentColor" stroke="none"/><path d="m12 16-3-3 4-3 2 3h2"/></svg></span>Ride</div>
  </div>
- <div class="hist-controls">
- <div class="hist-btn active" onclick="setHistMetric('distance',this)">Distance</div>
- <div class="hist-btn" onclick="setHistMetric('time',this)">Time</div>
- <div class="hist-btn" onclick="setHistMetric('elev',this)">Elev Gain</div>
- <div class="hist-btn" onclick="setHistMetric('count',this)">Activities</div>
- </div>
- <div class="hist-controls">
- <div class="hist-btn active" onclick="setHistPeriod('weekly',this)">Weekly</div>
- <div class="hist-btn" onclick="setHistPeriod('monthly',this)">Monthly</div>
- </div>
  <div class="hist-summary" id="histSummary"></div>
  <canvas id="histChart" height="200"></canvas>
- </div>
- </div>
-
- <!-- 4. HR & Pace Zones (moved from Overview) -->
- <div class="card" style="margin-top:8px;" id="hrCard">
- <div class="card-hdr"><div class="card-title">HR &amp; Pace Zones</div><div class="card-badge" id="hrBadge">Last 10</div></div>
- <div class="pz-toggle">
- <div class="pz-tab active" id="zoneTabHR" onclick="setZoneMode('hr',this)">️ HR Zones</div>
- <div class="pz-tab" id="zoneTabPace" onclick="setZoneMode('pace',this)">Pace Zones</div>
- </div>
- <div class="stabs-wrap">
- <div class="stabs" id="hrTabs">
- <div class="stab active" onclick="setHrTab('last10',this)">Last 10</div>
- <div class="stab" onclick="setHrTab('week',this)">This week</div>
- <div class="stab" onclick="setHrTab('month',this)">This month</div>
- </div>
- <div class="scroll-arr">›</div>
- </div>
- <div class="zw" id="hrZones"></div>
- </div>
-
- <!-- 5. Training Load -->
- <div class="card" style="margin-top:8px;">
- <div class="card-hdr"><div class="card-title">Training Load</div><div class="card-badge">CTL · ATL · TSB</div></div>
- <div class="tl-row">
- <div class="tl-box"><div class="tl-val" style="color:#2E86C1;" id="ctlVal">—</div><div class="tl-lbl">Fitness (CTL)</div></div>
- <div class="tl-box"><div class="tl-val" style="color:#ff9500;" id="atlVal">—</div><div class="tl-lbl">Fatigue (ATL)</div></div>
- <div class="tl-box"><div class="tl-val" id="tsbVal">—</div><div class="tl-lbl">Form (TSB)</div></div>
- </div>
- <div class="tl-msg" id="tsbMsg"></div>
- </div>
-
- <!-- 6. Progress Over Time -->
- <div class="card" style="margin-top:8px;margin-bottom:10px;">
- <div class="card-hdr"><div class="card-title">Progress Over Time</div><div class="card-badge">pace trend</div></div>
- <div style="padding:12px 13px 0;">
- <div class="prog-legend">
- <div class="prog-leg-item"><div class="prog-leg-dot" style="background:#C0365A"></div>5K</div>
- <div class="prog-leg-item"><div class="prog-leg-dot" style="background:#2E86C1"></div>10K</div>
- <div class="prog-leg-item"><div class="prog-leg-dot" style="background:#4cd964"></div>Half</div>
- </div>
- <canvas id="progChart" height="180"></canvas>
- <div id="progEmpty" style="display:none;padding:16px;text-align:center;font-size:12px;color:#bbb;">Need more data</div>
- <div style="padding:4px 0 10px;font-size:9px;color:#ccc;text-align:center;">Lower = faster · Riegel projection per month</div>
  </div>
  </div>
 
@@ -943,16 +886,12 @@ function renderOverview(){
  const wKm=thisWeek.filter(a=>['Run','Walk','Ride','Hike','VirtualRun'].includes(a.sport)).reduce((s,a)=>s+a.distance,0);
  console.log('Week:',monStr,'→',sunStr,'| acts:',thisWeek.length,'| runs:',wRuns.length,'| km:',wKm.toFixed(1));
 
- const r10=allActs.slice(0,10);
- document.getElementById('sumText')&&(document.getElementById('sumText').textContent=aiSummary);
- document.getElementById('sumCard')&&(document.getElementById('sumCard').style.display='block');
-
  renderLatestActivity();
- renderReadiness();
  renderRaceCountdown(thisWeek,wRuns,wKm);
  renderWeeklyPlan();
+ renderOvProgress();
 
-  
+
 }
 
 function buildHrMonthTabs(){
@@ -1105,30 +1044,12 @@ function renderRaceCountdown(thisWeek,wRuns,wKm){
  if(daysLeft<-7){document.getElementById('raceCard').style.display='none';return;}
 
  const weeksLeft=Math.max(0,Math.ceil(daysLeft/7));
- let phase,phaseClass,phaseDesc;
- if(daysLeft<=0){phase='Race Day! ';phaseClass='race';phaseDesc='Today is the day. Trust your training!';}
- else if(weeksLeft<=2){phase='Taper';phaseClass='taper';phaseDesc='Cut volume 20–30%. Keep sharpness, rest well.';}
- else if(weeksLeft<=4){phase='Peak';phaseClass='peak';phaseDesc='Highest volume. One last long effort, then taper.';}
- else{phase='Build';phaseClass='build';phaseDesc='Build aerobic base. One tempo run per week.';}
 
  // Auto-expand race dist label
  const distRaw=goals['race-dist']||'';
  const distLabel=distRaw.match(/^21/i)?'Half Marathon (21km)':distRaw.match(/^42/i)?'Marathon (42.2km)':distRaw.match(/^10k/i)?'10K':distRaw.match(/^5k/i)?'5K':distRaw;
 
- const totalWeeks=Math.min(16,weeksLeft+4);
- const doneWeeks=Math.max(0,totalWeeks-weeksLeft);
- const progressPct=Math.round(doneWeeks/totalWeeks*100);
-
- // CTL
- const thr=169;
- function getTSS(a){if(!a.avg_hr||!a.duration)return a.duration*0.5;const ef=a.avg_hr/thr;return Math.round(a.duration*ef*ef);}
- let ctl=0;const tssMap={};
- allActs.forEach(a=>{tssMap[a.date]=(tssMap[a.date]||0)+getTSS(a);});
- for(let i=41;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const ds=d.toISOString().slice(0,10);ctl=ctl+((tssMap[ds]||0)-ctl)*(1-Math.exp(-1/42));}
- const targetCTL=weeksLeft>8?40:weeksLeft>4?55:65;
- const onTrack=ctl>=targetCTL*0.85;
-
- // Weekly goal progress bars
+ // Weekly goal progress
  const wGoalKm=parseFloat(goals['weekly-km'])||0;
  const wGoalRuns=parseInt(goals['weekly-runs'])||0;
  const wRunCount=wRuns?wRuns.length:0;
@@ -1143,41 +1064,33 @@ function renderRaceCountdown(thisWeek,wRuns,wKm){
    const display=Number.isInteger(val)?val:val.toFixed(1);
    return `<div style="text-align:center;flex:1;"><svg width="90" height="90" viewBox="0 0 90 90"><circle cx="45" cy="45" r="${r}" fill="none" stroke="#f0ede8" stroke-width="9"/><circle cx="45" cy="45" r="${r}" fill="none" stroke="${c}" stroke-width="9" stroke-dasharray="${circ}" stroke-dashoffset="${offset}" stroke-linecap="round" transform="rotate(-90 45 45)"/><text x="45" y="43" text-anchor="middle" font-size="17" font-weight="700" fill="#1a1a1a" font-family="DM Sans,sans-serif">${display}</text><text x="45" y="57" text-anchor="middle" font-size="9" fill="#bbb" font-family="DM Sans,sans-serif">GOAL ${goal} ${label}</text></svg></div>`;
  }
- const weekProgress=`
- <div style="border-top:1px solid #f0ede8;padding:12px 0 0;margin-top:12px;">
- <div style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">This Week's Progress</div>
- ${(wGoalKm>0||wGoalRuns>0)?`<div style="display:flex;gap:8px;justify-content:center;">${wGoalKm>0?ring(wKmVal,wGoalKm,'KM','#C0365A'):''}${wGoalRuns>0?ring(wRunCount,wGoalRuns,'Runs','#C0365A'):''}</div>`:''}
- <div style="font-size:11px;color:#888;margin-top:6px;text-align:center;">${wMins} min active · ${weekCount} workouts this week</div>
- </div>`;
 
- document.getElementById('raceWrap').innerHTML=`
- <div class="rc-hero">
- <div>
- <div class="rc-days-big">${daysLeft<=0?'':daysLeft}</div>
- <div class="rc-days-unit">${daysLeft<=0?'Go time!':daysLeft===1?'day to go':'days to go'}</div>
- </div>
- <div class="rc-race-info">
- <div class="rc-race-name">${distLabel}</div>
- <div class="rc-race-date">${rd.toLocaleDateString('en-US',{weekday:'short',month:'long',day:'numeric',year:'numeric'})}</div>
- ${goals['race-time']?`<div class="rc-race-goal">Goal: ${goals['race-time']}</div>`:''}
- </div>
- </div>
- <div class="rc-phase-row">
- <span class="rc-phase-big ${phaseClass}">${phase}</span>
- <span class="rc-phase-desc">${phaseDesc}</span>
- </div>
- <div class="rc-progress">
- <div class="rc-progress-lbl"><span>Training Block</span><span>${progressPct}% complete · ${weeksLeft} weeks left</span></div>
- <div class="rc-progress-bar"><div class="rc-progress-fill" style="width:${progressPct}%"></div></div>
- </div>
- <div class="rc-grid-2">
- <div class="rc-stat-box"><div class="rc-stat-box-val" style="color:${onTrack?'#4cd964':'#ff9500'}">${onTrack?'On track ':'Build up'}</div><div class="rc-stat-box-lbl">Fitness</div></div>
- <div class="rc-stat-box"><div class="rc-stat-box-val" style="color:#C0365A">${Math.round(ctl)}</div><div class="rc-stat-box-lbl">CTL Score</div></div>
- </div>
- ${weekProgress}`;
-
- document.getElementById('racePhaseBadge').textContent=phase;
+ document.getElementById('raceCard').innerHTML=`
+<div style="padding:16px 18px 14px;">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+    <div>
+      <div style="font-size:64px;font-weight:900;color:#fff;line-height:1;letter-spacing:-2px;">${daysLeft<=0?'0':daysLeft}</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.65);text-transform:uppercase;letter-spacing:.8px;margin-top:4px;">${daysLeft<=0?'Race Day!':'days to go'}</div>
+    </div>
+    <div style="text-align:right;padding-top:6px;">
+      <div style="font-size:18px;font-weight:700;color:#fff;">${distLabel}</div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:3px;">${rd.toLocaleDateString('en-US',{weekday:'short',month:'long',day:'numeric',year:'numeric'})}</div>
+      ${goals['race-time']?`<div style="font-size:14px;font-weight:600;color:rgba(255,255,255,0.9);margin-top:5px;">Goal: ${goals['race-time']}</div>`:''}
+    </div>
+  </div>
+</div>`;
  document.getElementById('raceCard').style.display='block';
+
+ // Render week progress rings in their own card
+ const wpEl=document.getElementById('weekProgressCard');
+ if(wpEl&&(wGoalKm>0||wGoalRuns>0)){
+  wpEl.innerHTML=`<div class="card-hdr"><div class="card-title">This Week's Progress</div></div>
+  <div style="padding:8px 0 4px;">
+  <div style="display:flex;gap:8px;justify-content:center;">${wGoalKm>0?ring(wKmVal,wGoalKm,'KM','#C0365A'):''}${wGoalRuns>0?ring(wRunCount,wGoalRuns,'Runs','#C0365A'):''}</div>
+  <div style="font-size:11px;color:#888;margin-top:6px;text-align:center;padding-bottom:12px;">${wMins} min active · ${weekCount} workouts this week</div>
+  </div>`;
+  wpEl.style.display='block';
+ }
 }
 // ── WEEKLY TRAINING PLAN ─────────────────────────────────────────────
 function renderWeeklyPlan(){
@@ -1239,7 +1152,8 @@ function renderWeeklyPlan(){
  const day=today.getDay(),diff=day===0?-6:1-day;
  const monDate=new Date(today);monDate.setDate(today.getDate()+diff);
 
- document.getElementById('wplanBody').innerHTML=plan.map((p,i)=>{
+ const aiSection=aiSummary?`<div style="padding:10px 13px 8px;font-size:12px;color:#555;line-height:1.65;border-bottom:1px solid #f5f5f5;">${aiSummary}</div>`:'';
+ document.getElementById('wplanBody').innerHTML=aiSection+plan.map((p,i)=>{
  const d=new Date(monDate);d.setDate(monDate.getDate()+i);
  const ds=d.toISOString().slice(0,10);
  const isToday=ds===today.toISOString().slice(0,10);
@@ -1441,11 +1355,6 @@ function renderStats(){
  renderTotals();
  renderBreakdown();
  renderHistChart();
- document.getElementById('hrCard').style.display='block';
- renderHrZones(hrTab);
- buildHrMonthTabs();
- renderTrainingLoad();
- renderProgressChart();
 }
 
 function renderTrainingLoad(){
@@ -1557,6 +1466,7 @@ function setTotalsYear(y,el){
  renderTotals();
  renderBreakdown();
  renderHistChart();
+ renderStravaStats(y);
 }
 function renderTotals(){
  function fmt(acts){
@@ -1568,12 +1478,95 @@ function renderTotals(){
  const f=fmt(acts),af=fmt(allActs);
  const grid=(f,lbl)=>`<div class="totals-section-hdr">${lbl}</div><div class="totals-grid"><div class="totals-cell"><div class="totals-val">${f.n}</div><div class="totals-lbl">Activities</div></div><div class="totals-cell"><div class="totals-val">${f.dist} km</div><div class="totals-lbl">Distance</div></div><div class="totals-cell"><div class="totals-val">${f.time}</div><div class="totals-lbl">Time</div></div><div class="totals-cell"><div class="totals-val">${f.elev>0?f.elev+' m':'—'}</div><div class="totals-lbl">Elev Gain</div></div></div>`;
  document.getElementById('totalsGrid').innerHTML=grid(f,totalsYear==='all'?'All-Time':totalsYear)+(totalsYear!=='all'?grid(af,'All-Time'):'');
+ renderStravaStats(totalsYear);
 }
 
+function renderStravaStats(year){
+  const src=year==='all'?allActs:allActs.filter(a=>a.date.startsWith(year));
+  const runs=src.filter(a=>a.sport==='Run');
+  // Count distinct weeks for year
+  const wkSet=new Set(runs.map(a=>{const d=new Date(a.date+'T12:00:00'),dy=d.getDay(),df=dy===0?-6:1-dy;const m=new Date(d);m.setDate(d.getDate()+df);return m.toISOString().slice(0,10);}));
+  const nWeeks=Math.max(wkSet.size,1);
+  const avgRunsWk=(runs.length/nWeeks).toFixed(1);
+  const avgDistWk=(runs.reduce((s,a)=>s+a.distance,0)/nWeeks).toFixed(1);
+  const avgMinsWk=runs.reduce((s,a)=>s+a.duration,0)/nWeeks;
+  const avgTimeWk=avgMinsWk>=60?`${Math.floor(avgMinsWk/60)}h ${Math.round(avgMinsWk%60)}m`:`${Math.round(avgMinsWk)}m`;
+  const totalDist=src.filter(a=>a.sport==='Run').reduce((s,a)=>s+a.distance,0).toFixed(0);
+  const totalElev=Math.round(src.reduce((s,a)=>s+(a.elev||0),0)).toLocaleString();
+
+  const allMins=allActs.reduce((s,a)=>s+a.duration,0);
+  const allH=Math.floor(allMins/60),allM=Math.round(allMins%60);
+  const allTimeStr=allH>0?`${allH}h ${allM}m`:`${allM}m`;
+  const allDist=allActs.reduce((s,a)=>s+a.distance,0).toFixed(0);
+  const allElev=Math.round(allActs.reduce((s,a)=>s+(a.elev||0),0)).toLocaleString();
+
+  const el=document.getElementById('stravaStats');
+  if(!el)return;
+  el.innerHTML=`
+  <div style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;">${year==='all'?'All Time':year} · Runs</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#f5f5f5;border-radius:10px;overflow:hidden;margin-bottom:10px;">
+    <div style="background:#fff;padding:10px 12px;"><div style="font-size:16px;font-weight:700;">${avgRunsWk}</div><div style="font-size:10px;color:#bbb;margin-top:1px;">Avg runs/week</div></div>
+    <div style="background:#fff;padding:10px 12px;"><div style="font-size:16px;font-weight:700;">${avgTimeWk}</div><div style="font-size:10px;color:#bbb;margin-top:1px;">Avg time/week</div></div>
+    <div style="background:#fff;padding:10px 12px;"><div style="font-size:16px;font-weight:700;">${avgDistWk} km</div><div style="font-size:10px;color:#bbb;margin-top:1px;">Avg distance/week</div></div>
+    <div style="background:#fff;padding:10px 12px;"><div style="font-size:16px;font-weight:700;">${totalDist} km</div><div style="font-size:10px;color:#bbb;margin-top:1px;">Distance</div></div>
+    <div style="background:#fff;padding:10px 12px;"><div style="font-size:16px;font-weight:700;">${totalElev} m</div><div style="font-size:10px;color:#bbb;margin-top:1px;">Elevation gain</div></div>
+  </div>
+  <div style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;">All Time</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#f5f5f5;border-radius:10px;overflow:hidden;margin-bottom:12px;">
+    <div style="background:#fff;padding:10px 12px;"><div style="font-size:16px;font-weight:700;">${allActs.length}</div><div style="font-size:10px;color:#bbb;margin-top:1px;">Activities</div></div>
+    <div style="background:#fff;padding:10px 12px;"><div style="font-size:16px;font-weight:700;">${allTimeStr}</div><div style="font-size:10px;color:#bbb;margin-top:1px;">Time</div></div>
+    <div style="background:#fff;padding:10px 12px;"><div style="font-size:16px;font-weight:700;">${allDist} km</div><div style="font-size:10px;color:#bbb;margin-top:1px;">Distance</div></div>
+    <div style="background:#fff;padding:10px 12px;"><div style="font-size:16px;font-weight:700;">${allElev} m</div><div style="font-size:10px;color:#bbb;margin-top:1px;">Elevation gain</div></div>
+  </div>`;
+}
+
+let ovProgressChart=null, ovSport='Run';
 let histChart=null,histMetric='distance',histPeriod='weekly',histSport='all';
 function setHistMetric(m,el){histMetric=m;document.querySelectorAll('[onclick^="setHistMetric"]').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderHistChart();}
 function setHistPeriod(p,el){histPeriod=p;document.querySelectorAll('[onclick^="setHistPeriod"]').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderHistChart();}
 function setHistSport(s,el){histSport=s;document.querySelectorAll('[onclick^="setHistSport"]').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderHistChart();}
+
+function setOvSport(s,el){
+  ovSport=s;
+  document.querySelectorAll('#ovProgressFilter .hist-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderOvProgress();
+}
+
+function renderOvProgress(){
+  const isStrength=ovSport==='WeightTraining';
+  const cv=document.getElementById('ovProgressChart');
+  if(!cv)return;
+  // Last 13 weeks
+  const now=new Date();now.setHours(0,0,0,0);
+  const day=now.getDay(),diff=day===0?-6:1-day;
+  const thisMonday=new Date(now);thisMonday.setDate(now.getDate()+diff);
+  const weeks=[];
+  for(let i=12;i>=0;i--){
+    const wStart=new Date(thisMonday);wStart.setDate(thisMonday.getDate()-i*7);
+    const wEnd=new Date(wStart);wEnd.setDate(wStart.getDate()+6);
+    const wStartStr=wStart.toISOString().slice(0,10);
+    const wEndStr=wEnd.toISOString().slice(0,10);
+    const wActs=allActs.filter(a=>a.date>=wStartStr&&a.date<=wEndStr&&a.sport===ovSport);
+    const val=isStrength?+(wActs.reduce((s,a)=>s+a.duration,0)/60).toFixed(1):+(wActs.reduce((s,a)=>s+a.distance,0)).toFixed(1);
+    weeks.push({label:wStart.toLocaleDateString('en-US',{month:'short',day:'numeric'}),val,isCurrent:i===0});
+  }
+  const unit=isStrength?'h':'km';
+  const totalThisWeek=weeks[weeks.length-1].val;
+  const totalAll=weeks.reduce((s,w)=>s+w.val,0);
+  const badge=isStrength?`${totalThisWeek}h this week`:`${totalThisWeek} km this week`;
+  document.getElementById('ovProgressBadge').textContent=badge;
+  const summaryEl=document.getElementById('ovProgressSummary');
+  if(summaryEl)summaryEl.textContent=`${totalAll.toFixed(1)} ${unit} · ${isStrength?'Strength':ovSport} · 13 weeks`;
+  if(ovProgressChart)ovProgressChart.destroy();
+  const clr='#C0365A';
+  ovProgressChart=new Chart(cv.getContext('2d'),{
+    type:'line',
+    data:{labels:weeks.map(w=>w.label),datasets:[{data:weeks.map(w=>w.val),borderColor:clr,backgroundColor:clr+'22',borderWidth:2,pointRadius:weeks.map(w=>w.isCurrent?5:2),pointBackgroundColor:weeks.map(w=>w.isCurrent?clr:'#fff'),pointBorderColor:clr,tension:0.35,fill:true}]},
+    options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.parsed.y} ${unit}`}}},scales:{x:{grid:{display:false},ticks:{font:{size:9},color:'#bbb',maxRotation:45,maxTicksLimit:13}},y:{grid:{color:'#f5f5f5'},ticks:{font:{size:9},color:'#bbb'},beginAtZero:true}}}
+  });
+  document.getElementById('ovProgressCard').style.display='block';
+}
 
 function renderBreakdown(){
  const src=totalsYear==='all'?allActs:allActs.filter(a=>a.date.startsWith(totalsYear));
@@ -1895,31 +1888,19 @@ function applyDesktopLayout(){
  if(window.innerWidth<768)return;
  // Overview: wrap cards into 2-col grid
  const ov=document.getElementById('tab-overview');
- // Readiness + Race side by side
- const r=document.getElementById('readinessCard');
+ // Race + Progress side by side
  const rc=document.getElementById('raceCard');
- if(r&&rc&&r.parentNode===ov){
+ const op=document.getElementById('ovProgressCard');
+ if(rc&&op&&rc.parentNode===ov){
  const g=document.createElement('div');g.className='dsk-grid-2';
- ov.insertBefore(g,r);g.appendChild(r);g.appendChild(rc);
+ ov.insertBefore(g,rc);g.appendChild(rc);g.appendChild(op);
  }
- // Goal + Summary side by side
- const gc=document.getElementById('goalCard');
- const sc=document.getElementById('sumCard');
- if(gc&&sc&&gc.parentNode===ov){
- const g=document.createElement('div');g.className='dsk-grid-2';
- ov.insertBefore(g,gc);g.appendChild(gc);g.appendChild(sc);
- }
- // HR + Plan side by side
- const hr=document.getElementById('hrCard');
+ // WeekProgress + Plan side by side
+ const wp2=document.getElementById('weekProgressCard');
  const wp=document.getElementById('wplanCard');
- if(hr&&wp&&hr.parentNode===ov){
+ if(wp2&&wp&&wp2.parentNode===ov){
  const g=document.createElement('div');g.className='dsk-grid-2';
- ov.insertBefore(g,hr);g.appendChild(hr);g.appendChild(wp);
- }
- // AI full width
- const ai=document.getElementById('aiCard');
- if(ai&&ai.parentNode===ov){
- ai.classList.add('dsk-full');
+ ov.insertBefore(g,wp2);g.appendChild(wp2);g.appendChild(wp);
  }
 }
 
@@ -1936,7 +1917,6 @@ function applyData(data){
  aiNext=data.next_workout||{};
  document.getElementById('aiBody').innerHTML=mdHtml(aiAnalysis);
  document.getElementById('aiBodyOv').innerHTML=mdHtml(aiAnalysis);
- document.getElementById('aiCard').style.display='block';
  renderOverview();
  buildMonthTabs();
  renderMonthBlocks();
