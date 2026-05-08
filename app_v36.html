@@ -724,7 +724,7 @@ canvas{width:100%!important;}
  <div class="card" style="margin-top:8px;">
  <div class="card-hdr"><div class="card-title">Weekly Targets</div></div>
  <div class="gri"><div class="gri-lbl">Weekly km</div><input class="gri-inp" id="g-weekly-km" type="number" placeholder="0"><div class="gri-unit">km</div></div>
- <div class="gri"><div class="gri-lbl">Weekly runs</div><input class="gri-inp" id="g-weekly-runs" type="number" placeholder="0"><div class="gri-unit">runs</div></div>
+ <div class="gri"><div class="gri-lbl">Weekly time</div><input class="gri-inp" id="g-weekly-time" type="number" placeholder="0"><div class="gri-unit">hours</div></div>
  </div>
  <div class="card" style="margin-top:8px;">
  <div class="card-hdr"><div class="card-title">VO2 Max</div></div>
@@ -810,7 +810,7 @@ function icon(name,size=16,color='currentColor'){
 function renderIcons(){}  // no-op, icons are inline
 const WI={Run:'run',Walk:'walk',WeightTraining:'dumbbell',Ride:'ride',Hike:'hike',Swim:'swim',Workout:'workout',VirtualRun:'run'};
 const WBg={Run:'#fdf0f4',Walk:'#f0f5ff',WeightTraining:'#f0fff8',Ride:'#fffbf0',Workout:'#f5f0ff'};
-const GKEYS=['g-race-date','g-race-dist','g-race-time','g-weekly-km','g-weekly-runs','g-vo2-current','g-vo2-target','g-pr-5k-goal','g-pr-10k-goal','g-pr-15k-goal','g-pr-21k-goal','g-pr-42k-goal'];
+const GKEYS=['g-race-date','g-race-dist','g-race-time','g-weekly-km','g-weekly-time','g-vo2-current','g-vo2-target','g-pr-5k-goal','g-pr-10k-goal','g-pr-15k-goal','g-pr-21k-goal','g-pr-42k-goal'];
 const STEPS=['Fetching latest workouts...','Loading 2025–2026 history...','Getting best efforts...','Computing zones & stats...','Generating AI insights...','Almost done...'];
 const PAGE_SIZE=10;
 const CACHE_KEY='trainai_cache_v1';
@@ -996,6 +996,7 @@ function renderLatestActivity(){
      <div><span style="font-size:16px;font-weight:700;color:#1a1a1a;">${weekSet.size}</span><span style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:.5px;margin-left:4px;">Active Weeks</span><div style="font-size:9px;color:#bbb;margin-top:1px;">since ${firstActivity}</div>
      </div>
    </div>
+   <div style="font-size:11px;color:#888;margin-top:8px;">${(()=>{const mon=getMon(),sun=getSun();const wk=allActs.filter(x=>x.date>=mon&&x.date<=sun);const wkMins=Math.round(wk.reduce((s,x)=>s+x.duration,0));return `${wkMins} min active · ${wk.length} workouts this week`;})()}</div>
  </div>`;
  document.getElementById('latestCard').style.display='block';
 }
@@ -1058,7 +1059,7 @@ function renderRaceCountdown(thisWeek,wRuns,wKm){
 
  // Weekly goal progress
  const wGoalKm=parseFloat(goals['weekly-km'])||0;
- const wGoalRuns=parseInt(goals['weekly-runs'])||0;
+ const wGoalTimeH=parseFloat(goals['weekly-time'])||0;
  const wRunCount=wRuns?wRuns.length:0;
  const wKmVal=wKm||0;
  const wMins=thisWeek?Math.round(thisWeek.reduce((s,a)=>s+a.duration,0)):0;
@@ -1568,41 +1569,34 @@ function renderOvProgress(){
   const wH=Math.floor(weekMins/60),wM=Math.round(weekMins%60);
   const weekTimeStr=wH>0?`${wH}h ${wM}m`:`${wM}m`;
 
-  // Week stats row
+  // Goal progress bar helper
+  const goalBar=(val,goal)=>{
+    if(!goal)return'';
+    const pct=Math.min(val/goal,1);
+    const met=val>=goal;
+    const barClr=met?'#4cd964':'#1a1a1a';
+    return `<div style="margin-top:5px;"><div style="font-size:9px;color:#bbb;margin-bottom:3px;">Goal: ${goal}${goal===Math.floor(goal)?'':''}</div><div style="height:4px;background:#ebebeb;border-radius:2px;overflow:hidden;"><div style="height:4px;width:${Math.round(pct*100)}%;background:${barClr};border-radius:2px;transition:width .4s;"></div></div></div>`;
+  };
+
+  // Week stats row with inline goal bars (Run only for goals)
   const statsEl=document.getElementById('ovWeekStats');
+  const g=getGoals();
+  const wGoalKm=parseFloat(g['weekly-km'])||0;
+  const wGoalTimeH=parseFloat(g['weekly-time'])||0; // hours
   if(statsEl){
-    const sc=(val,lbl)=>`<div style="flex:1;background:#f8f8f6;border-radius:10px;padding:8px 10px;"><div style="font-size:15px;font-weight:700;color:#1a1a1a;">${val}</div><div style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;">${lbl}</div></div>`;
+    const sc=(val,lbl,barHtml)=>`<div style="flex:1;background:#f8f8f6;border-radius:10px;padding:8px 10px;"><div style="font-size:15px;font-weight:700;color:#1a1a1a;">${val}</div><div style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;">${lbl}</div>${barHtml||''}</div>`;
     let cells='';
-    if(!isStrength)cells+=sc(weekDist.toFixed(1)+' km','Distance');
-    cells+=sc(weekTimeStr,'Time');
-    if(!isStrength&&!isSwim)cells+=sc(Math.round(weekElev)+' m','Elev Gain');
+    const showGoals=ovSport==='Run';
+    if(!isStrength)cells+=sc(weekDist.toFixed(1)+' km','Distance',showGoals&&wGoalKm?goalBar(weekDist,wGoalKm):'');
+    cells+=sc(weekTimeStr,'Time',showGoals&&wGoalTimeH?goalBar(weekMins/60,wGoalTimeH):'');
+    if(!isStrength&&!isSwim)cells+=sc(Math.round(weekElev)+' m','Elev Gain','');
     statsEl.innerHTML=cells;
     statsEl.style.display='flex';
   }
 
-  // Goal rings — Run only
+  // Hide rings element (no longer used)
   const goalsEl=document.getElementById('ovGoalRings');
-  if(goalsEl){
-    if(ovSport==='Run'){
-      const g=getGoals();
-      const wGoalKm=parseFloat(g['weekly-km'])||0;
-      const wGoalRuns=parseInt(g['weekly-runs'])||0;
-      const wRunCount=allActs.filter(a=>a.date>=monStr&&a.date<=sunStr&&a.sport==='Run').length;
-      if(wGoalKm>0||wGoalRuns>0){
-        function ring(val,goal,label,clr){
-          const pct=goal>0?Math.min(val/goal,1):0;
-          const r=34,circ=+(2*Math.PI*r).toFixed(1),offset=+(circ*(1-pct)).toFixed(1);
-          const c=(goal>0&&val>=goal)?'#4cd964':clr;
-          const display=Number.isInteger(val)?val:val.toFixed(1);
-          return `<div style="text-align:center;flex:1;"><svg width="80" height="80" viewBox="0 0 80 80"><circle cx="40" cy="40" r="${r}" fill="none" stroke="#f0ede8" stroke-width="8"/><circle cx="40" cy="40" r="${r}" fill="none" stroke="${c}" stroke-width="8" stroke-dasharray="${circ}" stroke-dashoffset="${offset}" stroke-linecap="round" transform="rotate(-90 40 40)"/><text x="40" y="38" text-anchor="middle" font-size="15" font-weight="700" fill="#1a1a1a" font-family="DM Sans,sans-serif">${display}</text><text x="40" y="51" text-anchor="middle" font-size="8" fill="#bbb" font-family="DM Sans,sans-serif">GOAL ${goal} ${label}</text></svg></div>`;
-        }
-        const totalWkMins=allActs.filter(a=>a.date>=monStr&&a.date<=sunStr).reduce((s,a)=>s+a.duration,0);
-        const wkActCount=allActs.filter(a=>a.date>=monStr&&a.date<=sunStr).length;
-        goalsEl.innerHTML=`<div style="display:flex;gap:8px;justify-content:center;">${wGoalKm>0?ring(weekDist,wGoalKm,'KM','#C0365A'):''}${wGoalRuns>0?ring(wRunCount,wGoalRuns,'Runs','#C0365A'):''}</div><div style="font-size:11px;color:#888;text-align:center;margin-top:4px;">${Math.round(totalWkMins)} min active · ${wkActCount} workouts this week</div>`;
-        goalsEl.style.display='block';
-      } else goalsEl.style.display='none';
-    } else goalsEl.style.display='none';
-  }
+  if(goalsEl)goalsEl.style.display='none';
 
   // Last 13 weeks chart
   const now=new Date();now.setHours(0,0,0,0);
