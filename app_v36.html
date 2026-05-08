@@ -603,7 +603,8 @@ canvas{width:100%!important;}
       <div class="hist-btn" onclick="setOvSport('WeightTraining',this)">Strength</div>
       <div class="hist-btn" onclick="setOvSport('Swim',this)">Swim</div>
     </div>
-    <!-- This week stats row -->
+    <!-- This week label + stats row -->
+    <div style="font-size:11px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">This Week</div>
     <div id="ovWeekStats" style="display:flex;gap:6px;margin-bottom:12px;"></div>
     <!-- Goal rings — Run only -->
     <div id="ovGoalRings" style="display:none;margin-bottom:12px;"></div>
@@ -723,8 +724,17 @@ canvas{width:100%!important;}
  </div>
  <div class="card" style="margin-top:8px;">
  <div class="card-hdr"><div class="card-title">Weekly Targets</div></div>
+ <div style="padding:8px 13px 4px;">
+ <div class="hist-controls" id="goalSportFilter">
+ <div class="hist-btn active" onclick="setGoalSport('Run',this)">Run</div>
+ <div class="hist-btn" onclick="setGoalSport('Walk',this)">Walk</div>
+ <div class="hist-btn" onclick="setGoalSport('Ride',this)">Ride</div>
+ <div class="hist-btn" onclick="setGoalSport('WeightTraining',this)">Strength</div>
+ <div class="hist-btn" onclick="setGoalSport('Swim',this)">Swim</div>
+ </div>
+ </div>
  <div class="gri"><div class="gri-lbl">Weekly km</div><input class="gri-inp" id="g-weekly-km" type="number" placeholder="0"><div class="gri-unit">km</div></div>
- <div class="gri"><div class="gri-lbl">Weekly time</div><input class="gri-inp" id="g-weekly-time" type="number" placeholder="0"><div class="gri-unit">hours</div></div>
+ <div class="gri" id="gri-weekly-time"><div class="gri-lbl">Weekly time</div><input class="gri-inp" id="g-weekly-time" type="number" placeholder="0"><div class="gri-unit">hours</div></div>
  </div>
  <div class="card" style="margin-top:8px;">
  <div class="card-hdr"><div class="card-title">VO2 Max</div></div>
@@ -822,15 +832,46 @@ let prIds=new Set();
 let wFilter='All', wYear=2026, wPage=0, openMonth=null, openMonthActs=[];
 let hrTab='last10', cTime='week', cType='distance', cSport='Run';
 let totalsYear='2026', totalsStatSport='all';
+let goalSport='Run';
 let trendChart=null, volChart=null;
 
 // ── GOALS ────────────────────────────────────────────────────────────
 // ── GOALS — save to server + localStorage ────────────────────────────
+const SPORTS=['Run','Walk','Ride','WeightTraining','Swim'];
+function _wKey(sport,type){return `g-weekly-${type}-${sport}`;}
+function setGoalSport(s,el){
+  goalSport=s;
+  document.querySelectorAll('#goalSportFilter .hist-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  // Hide km for Strength/Swim, show for others
+  const hideKm=s==='WeightTraining'||s==='Swim';
+  const kmRow=document.querySelector('#g-weekly-km')?.closest('.gri');
+  if(kmRow)kmRow.style.display=hideKm?'none':'flex';
+  // Load stored values for this sport
+  const km=localStorage.getItem(_wKey(s,'km'))||'';
+  const time=localStorage.getItem(_wKey(s,'time'))||'';
+  const kmEl=document.getElementById('g-weekly-km');
+  const timeEl=document.getElementById('g-weekly-time');
+  if(kmEl)kmEl.value=km;
+  if(timeEl)timeEl.value=time;
+}
 async function saveGoals(){
-  GKEYS.forEach(k=>{const e=document.getElementById(k);if(e)localStorage.setItem(k,e.value);});
-  // Also save to server
+  // Save non-weekly keys as before
+  const nonWeekly=GKEYS.filter(k=>k!=='g-weekly-km'&&k!=='g-weekly-time');
+  nonWeekly.forEach(k=>{const e=document.getElementById(k);if(e)localStorage.setItem(k,e.value);});
+  // Save weekly targets for current goalSport
+  const kmVal=document.getElementById('g-weekly-km')?.value||'';
+  const timeVal=document.getElementById('g-weekly-time')?.value||'';
+  localStorage.setItem(_wKey(goalSport,'km'),kmVal);
+  localStorage.setItem(_wKey(goalSport,'time'),timeVal);
+  // Build full goals object for server
   const goals={};
-  GKEYS.forEach(k=>{const e=document.getElementById(k);if(e&&e.value)goals[k]=e.value;});
+  nonWeekly.forEach(k=>{const e=document.getElementById(k);if(e&&e.value)goals[k]=e.value;});
+  SPORTS.forEach(sp=>{
+    const km=localStorage.getItem(_wKey(sp,'km'));const time=localStorage.getItem(_wKey(sp,'time'));
+    if(km)goals[_wKey(sp,'km')]=km;
+    if(time)goals[_wKey(sp,'time')]=time;
+  });
   try{await fetch('/goals',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(goals)});}catch(e){}
   const b=document.querySelector('.save-btn');if(b){b.textContent='Saved!';setTimeout(()=>b.textContent='Save All Goals',1500);}
 }
@@ -838,15 +879,22 @@ async function loadGoalsFromServer(){
   try{
     const r=await fetch('/goals');if(!r.ok)return;
     const g=await r.json();
-    if(!g||Object.keys(g).length===0)return; // server has nothing — keep localStorage
-    GKEYS.forEach(k=>{
-      if(g[k]){localStorage.setItem(k,g[k]);const e=document.getElementById(k);if(e)e.value=g[k];}
+    if(!g||Object.keys(g).length===0)return;
+    GKEYS.forEach(k=>{if(g[k]){localStorage.setItem(k,g[k]);const e=document.getElementById(k);if(e)e.value=g[k];}});
+    // Load per-sport weekly targets into localStorage
+    SPORTS.forEach(sp=>{
+      ['km','time'].forEach(t=>{const k=_wKey(sp,t);if(g[k])localStorage.setItem(k,g[k]);});
     });
     console.log('[Goals] Loaded from server');
   }catch(e){console.warn('[Goals] Server load failed, using localStorage');}
 }
 function loadGoals(){
   GKEYS.forEach(k=>{const v=localStorage.getItem(k);if(v){const e=document.getElementById(k);if(e)e.value=v;}});
+  // Load current goalSport weekly values into inputs
+  const km=localStorage.getItem(_wKey(goalSport,'km'))||'';
+  const time=localStorage.getItem(_wKey(goalSport,'time'))||'';
+  const kmEl=document.getElementById('g-weekly-km');const timeEl=document.getElementById('g-weekly-time');
+  if(kmEl)kmEl.value=km;if(timeEl)timeEl.value=time;
 }
 function getGoals(){const g={};GKEYS.forEach(k=>{const e=document.getElementById(k);if(e)g[k.replace('g-','')]=e.value;});return g;}
 
@@ -1576,20 +1624,18 @@ function renderOvProgress(){
     const met=val>=goal;
     const barClr=met?'#4cd964':'#1a1a1a';
     const goalLbl=unit==='h'?`${goal}h`:`${goal} km`;
-    return `<div style="margin-top:5px;"><div style="font-size:9px;color:#bbb;margin-bottom:3px;">Goal: ${goalLbl}</div><div style="height:3px;background:#ebebeb;border-radius:2px;overflow:hidden;width:70%;"><div style="height:3px;width:${Math.round(pct*100)}%;background:${barClr};border-radius:2px;"></div></div></div>`;
+    return `<div style="margin-top:6px;"><div style="font-size:9px;color:#bbb;margin-bottom:3px;">Goal: ${goalLbl}</div><div style="height:6px;background:#ebebeb;border-radius:3px;overflow:hidden;"><div style="height:6px;width:${Math.round(pct*100)}%;background:${barClr};border-radius:3px;transition:width .4s;"></div></div></div>`;
   };
 
-  // Week stats row with inline goal bars (Run only for goals)
+  // Week stats row — read per-sport goals from localStorage
   const statsEl=document.getElementById('ovWeekStats');
-  const g=getGoals();
-  const wGoalKm=parseFloat(g['weekly-km'])||0;
-  const wGoalTimeH=parseFloat(g['weekly-time'])||0;
+  const wGoalKm=parseFloat(localStorage.getItem(_wKey(ovSport,'km')))||0;
+  const wGoalTimeH=parseFloat(localStorage.getItem(_wKey(ovSport,'time')))||0;
   if(statsEl){
     const sc=(val,lbl,barHtml)=>`<div style="flex:1;background:#f8f8f6;border-radius:10px;padding:8px 10px;"><div style="font-size:15px;font-weight:700;color:#1a1a1a;">${val}</div><div style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;">${lbl}</div>${barHtml||''}</div>`;
     let cells='';
-    const showGoals=ovSport==='Run';
-    if(!isStrength)cells+=sc(weekDist.toFixed(1)+' km','Distance',showGoals&&wGoalKm?goalBar(weekDist,wGoalKm,'km'):'');
-    cells+=sc(weekTimeStr,'Time',showGoals&&wGoalTimeH?goalBar(weekMins/60,wGoalTimeH,'h'):'');
+    if(!isStrength)cells+=sc(weekDist.toFixed(1)+' km','Distance',wGoalKm?goalBar(weekDist,wGoalKm,'km'):'');
+    cells+=sc(weekTimeStr,'Time',wGoalTimeH?goalBar(weekMins/60,wGoalTimeH,'h'):'');
     if(!isStrength&&!isSwim)cells+=sc(Math.round(weekElev)+' m','Elev Gain','');
     statsEl.innerHTML=cells;
     statsEl.style.display='flex';
