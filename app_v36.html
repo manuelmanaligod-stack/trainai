@@ -667,30 +667,46 @@ canvas{width:100%!important;}
 <!-- ═══ STATS ═══ -->
 <div id="tab-stats" style="display:none">
 
- <!-- 1. Activity History + Totals merged -->
+ <!-- Activity History -->
  <div class="card" style="margin-top:8px;">
  <div class="card-hdr"><div class="card-title">Activity History</div></div>
- <div style="padding:10px 13px 0;">
- <div class="totals-year-pick" id="totalsYearPick" style="padding:0 0 8px;">
+ <div style="padding:10px 13px 12px;">
+ <!-- Year filter -->
+ <div class="totals-year-pick" id="totalsYearPick" style="padding:0 0 10px;">
  <div class="typ-btn active" onclick="setTotalsYear('2026',this)">2026</div>
  <div class="typ-btn" onclick="setTotalsYear('2025',this)">2025</div>
  </div>
- <!-- Strava-style stats -->
- <div id="stravaStats" style="padding:10px 13px 0;"></div>
- <div id="totalsGrid" style="margin:0 -13px 10px;"></div>
- <!-- Activity Breakdown pills -->
- <div id="actBreakdown" style="margin-bottom:10px;"></div>
- <!-- Sport filter for chart -->
- <div class="hist-controls" id="histSportFilter">
- <div class="hist-btn active" onclick="setHistSport('all',this)">All</div>
- <div class="hist-btn" onclick="setHistSport('Run',this)"><span style="display:inline-flex;align-items:center;width:13px;height:13px;margin-right:4px;flex-shrink:0;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="14" cy="4" r="1.5"/><path d="M7 21l4.5-7.5L14 16l2-5 3.5 5.5"/><path d="M8 12.5l3-5 4.5 1.5 1-3"/></svg></span>Run</div>
- <div class="hist-btn" onclick="setHistSport('Walk',this)"><span style="display:inline-flex;align-items:center;width:13px;height:13px;margin-right:4px;flex-shrink:0;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="3.5" r="1.5"/><path d="M10 7l-2 5 3 1.5"/><path d="M8 12l-1.5 5"/><path d="M10 7l2.5 1.5 2.5-2"/><path d="M13 8.5l1.5 5 1.5 3.5"/></svg></span>Walk</div>
- <div class="hist-btn" onclick="setHistSport('WeightTraining',this)"><span style="display:inline-flex;align-items:center;width:13px;height:13px;margin-right:4px;flex-shrink:0;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4v16M18 4v16"/><path d="M3 8h3M3 16h3M18 8h3M18 16h3"/><path d="M6 12h12"/></svg></span>Strength</div>
- <div class="hist-btn" onclick="setHistSport('Ride',this)"><span style="display:inline-flex;align-items:center;width:13px;height:13px;margin-right:4px;flex-shrink:0;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18.5" cy="17.5" r="3"/><circle cx="5.5" cy="17.5" r="3"/><circle cx="15" cy="5" r="1.2" fill="currentColor" stroke="none"/><path d="m12 16-3-3 4-3 2 3h2"/></svg></span>Ride</div>
+ <!-- Sport filter -->
+ <div class="hist-controls" id="totalsSportFilter" style="margin-bottom:12px;">
+ <div class="hist-btn active" onclick="setTotalsSport('all',this)">All</div>
+ <div class="hist-btn" onclick="setTotalsSport('Run',this)">Run</div>
+ <div class="hist-btn" onclick="setTotalsSport('Walk',this)">Walk</div>
+ <div class="hist-btn" onclick="setTotalsSport('Ride',this)">Ride</div>
+ <div class="hist-btn" onclick="setTotalsSport('WeightTraining',this)">Strength</div>
  </div>
- <div class="hist-summary" id="histSummary"></div>
- <canvas id="histChart" height="200"></canvas>
+ <!-- Stats grid -->
+ <div id="stravaStats"></div>
  </div>
+ </div>
+
+ <!-- HR & Pace Zones -->
+ <div class="card" style="margin-top:8px;">
+ <div class="card-hdr">
+ <div class="card-title">HR &amp; Pace Zones</div>
+ <div class="card-badge" id="hrBadge">All</div>
+ </div>
+ <div style="padding:8px 13px 0;">
+ <div style="display:flex;background:#f5f5f0;border-radius:8px;padding:3px;gap:2px;margin-bottom:8px;">
+ <div class="pz-tab active" onclick="setZoneMode('hr',this)">Heart Rate</div>
+ <div class="pz-tab" onclick="setZoneMode('pace',this)">Pace</div>
+ </div>
+ </div>
+ <div class="stabs" id="hrTabs" style="padding:0 13px 8px;gap:6px;flex-wrap:wrap;">
+ <div class="stab active" onclick="setHrTab('last10',this)">Last 10</div>
+ <div class="stab" onclick="setHrTab('week',this)">7 Days</div>
+ <div class="stab" onclick="setHrTab('month',this)">Month</div>
+ </div>
+ <div id="hrZones" style="padding:0 13px 13px;"></div>
  </div>
 
 </div>
@@ -803,6 +819,7 @@ let allActs=[], allBE=[], aiSummary='', aiAnalysis='', aiNext={};
 let prIds=new Set();
 let wFilter='All', wYear=2026, wPage=0, openMonth=null, openMonthActs=[];
 let hrTab='last10', cTime='week', cType='distance', cSport='Run';
+let totalsYear='2026', totalsStatSport='all';
 let trendChart=null, volChart=null;
 
 // ── GOALS ────────────────────────────────────────────────────────────
@@ -872,7 +889,7 @@ function showTab(name,el){
  if(name==='stats'&&allActs.length>0){
   requestAnimationFrame(()=>{
    renderStats();
-   setTimeout(()=>{[trendChart,volChart,progChart,histChart].forEach(c=>{if(c)c.resize();});},50);
+   setTimeout(()=>{[trendChart,volChart,progChart].forEach(c=>{if(c)c.resize();});},50);
   });
  }
 }
@@ -1352,9 +1369,9 @@ function renderProgressChart(){
 
 // ── STATS ─────────────────────────────────────────────────────────────
 function renderStats(){
- renderTotals();
- renderBreakdown();
- renderHistChart();
+ renderStravaStats(totalsYear, totalsStatSport);
+ buildHrMonthTabs();
+ renderHrZones(hrTab);
 }
 
 function renderTrainingLoad(){
@@ -1461,12 +1478,15 @@ function renderMyStats(){
 
 function setTotalsYear(y,el){
  totalsYear=y;
- document.querySelectorAll('.typ-btn').forEach(b=>b.classList.remove('active'));
+ document.querySelectorAll('#totalsYearPick .typ-btn').forEach(b=>b.classList.remove('active'));
  el.classList.add('active');
- renderTotals();
- renderBreakdown();
- renderHistChart();
- renderStravaStats(y);
+ renderStravaStats(totalsYear, totalsStatSport);
+}
+function setTotalsSport(s,el){
+ totalsStatSport=s;
+ document.querySelectorAll('#totalsSportFilter .hist-btn').forEach(b=>b.classList.remove('active'));
+ el.classList.add('active');
+ renderStravaStats(totalsYear, totalsStatSport);
 }
 function renderTotals(){
  function fmt(acts){
@@ -1481,43 +1501,64 @@ function renderTotals(){
  renderStravaStats(totalsYear);
 }
 
-function renderStravaStats(year){
-  const src=year==='all'?allActs:allActs.filter(a=>a.date.startsWith(year));
-  const runs=src.filter(a=>a.sport==='Run');
-  // Count distinct weeks for year
-  const wkSet=new Set(runs.map(a=>{const d=new Date(a.date+'T12:00:00'),dy=d.getDay(),df=dy===0?-6:1-dy;const m=new Date(d);m.setDate(d.getDate()+df);return m.toISOString().slice(0,10);}));
-  const nWeeks=Math.max(wkSet.size,1);
-  const avgRunsWk=(runs.length/nWeeks).toFixed(1);
-  const avgDistWk=(runs.reduce((s,a)=>s+a.distance,0)/nWeeks).toFixed(1);
-  const avgMinsWk=runs.reduce((s,a)=>s+a.duration,0)/nWeeks;
-  const avgTimeWk=avgMinsWk>=60?`${Math.floor(avgMinsWk/60)}h ${Math.round(avgMinsWk%60)}m`:`${Math.round(avgMinsWk)}m`;
-  const totalDist=src.filter(a=>a.sport==='Run').reduce((s,a)=>s+a.distance,0).toFixed(0);
-  const totalElev=Math.round(src.reduce((s,a)=>s+(a.elev||0),0)).toLocaleString();
+function renderStravaStats(year, sport){
+  const sportKey=sport||'all';
+  const yearSrc=allActs.filter(a=>a.date.startsWith(year));
+  const yearFiltered=sportKey==='all'?yearSrc:yearSrc.filter(a=>a.sport===sportKey);
+  const allFiltered=sportKey==='all'?allActs:allActs.filter(a=>a.sport===sportKey);
 
-  const allMins=allActs.reduce((s,a)=>s+a.duration,0);
+  // Count distinct active weeks in selected year
+  const wkSet=new Set(yearFiltered.map(a=>{
+    const d=new Date(a.date+'T12:00:00'),dy=d.getDay(),df=dy===0?-6:1-dy;
+    const m=new Date(d);m.setDate(d.getDate()+df);return m.toISOString().slice(0,10);
+  }));
+  const nWeeks=Math.max(wkSet.size,1);
+
+  const avgActsWk=(yearFiltered.length/nWeeks).toFixed(1);
+  const yearMins=yearFiltered.reduce((s,a)=>s+a.duration,0);
+  const avgMinsWk=yearMins/nWeeks;
+  const avgTimeWk=avgMinsWk>=60?`${Math.floor(avgMinsWk/60)}h ${Math.round(avgMinsWk%60)}m`:`${Math.round(avgMinsWk)}m`;
+  const yearDist=yearFiltered.reduce((s,a)=>s+a.distance,0);
+  const avgDistWk=(yearDist/nWeeks).toFixed(1);
+  const totalMins=yearMins;
+  const totalH=Math.floor(totalMins/60),totalM=Math.round(totalMins%60);
+  const totalTimeStr=totalH>0?`${totalH}h ${totalM}m`:`${totalM}m`;
+  const totalDist=yearDist.toFixed(1);
+  const totalElev=Math.round(yearFiltered.reduce((s,a)=>s+(a.elev||0),0)).toLocaleString();
+
+  const allMins=allFiltered.reduce((s,a)=>s+a.duration,0);
   const allH=Math.floor(allMins/60),allM=Math.round(allMins%60);
   const allTimeStr=allH>0?`${allH}h ${allM}m`:`${allM}m`;
-  const allDist=allActs.reduce((s,a)=>s+a.distance,0).toFixed(0);
-  const allElev=Math.round(allActs.reduce((s,a)=>s+(a.elev||0),0)).toLocaleString();
+  const allDist=allFiltered.reduce((s,a)=>s+a.distance,0).toFixed(1);
+  const allElev=Math.round(allFiltered.reduce((s,a)=>s+(a.elev||0),0)).toLocaleString();
+
+  const sportLbl=sportKey==='all'?'Activities':sportKey==='WeightTraining'?'Strength':sportKey+'s';
+  const avgLbl=sportKey==='all'?'Avg Activities/Week':`Avg ${sportLbl}/Week`;
+
+  const cell=(val,lbl)=>`<div style="background:#fff;padding:10px 12px;"><div style="font-size:16px;font-weight:700;">${val}</div><div style="font-size:10px;color:#bbb;margin-top:1px;">${lbl}</div></div>`;
+  const grid=(...cells)=>`<div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#f5f5f5;border-radius:10px;overflow:hidden;margin-bottom:12px;">${cells.join('')}</div>`;
+  const hdr=t=>`<div style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;">${t}</div>`;
 
   const el=document.getElementById('stravaStats');
   if(!el)return;
-  el.innerHTML=`
-  <div style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;">${year==='all'?'All Time':year} · Runs</div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#f5f5f5;border-radius:10px;overflow:hidden;margin-bottom:10px;">
-    <div style="background:#fff;padding:10px 12px;"><div style="font-size:16px;font-weight:700;">${avgRunsWk}</div><div style="font-size:10px;color:#bbb;margin-top:1px;">Avg runs/week</div></div>
-    <div style="background:#fff;padding:10px 12px;"><div style="font-size:16px;font-weight:700;">${avgTimeWk}</div><div style="font-size:10px;color:#bbb;margin-top:1px;">Avg time/week</div></div>
-    <div style="background:#fff;padding:10px 12px;"><div style="font-size:16px;font-weight:700;">${avgDistWk} km</div><div style="font-size:10px;color:#bbb;margin-top:1px;">Avg distance/week</div></div>
-    <div style="background:#fff;padding:10px 12px;"><div style="font-size:16px;font-weight:700;">${totalDist} km</div><div style="font-size:10px;color:#bbb;margin-top:1px;">Distance</div></div>
-    <div style="background:#fff;padding:10px 12px;"><div style="font-size:16px;font-weight:700;">${totalElev} m</div><div style="font-size:10px;color:#bbb;margin-top:1px;">Elevation gain</div></div>
-  </div>
-  <div style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;">All Time</div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#f5f5f5;border-radius:10px;overflow:hidden;margin-bottom:12px;">
-    <div style="background:#fff;padding:10px 12px;"><div style="font-size:16px;font-weight:700;">${allActs.length}</div><div style="font-size:10px;color:#bbb;margin-top:1px;">Activities</div></div>
-    <div style="background:#fff;padding:10px 12px;"><div style="font-size:16px;font-weight:700;">${allTimeStr}</div><div style="font-size:10px;color:#bbb;margin-top:1px;">Time</div></div>
-    <div style="background:#fff;padding:10px 12px;"><div style="font-size:16px;font-weight:700;">${allDist} km</div><div style="font-size:10px;color:#bbb;margin-top:1px;">Distance</div></div>
-    <div style="background:#fff;padding:10px 12px;"><div style="font-size:16px;font-weight:700;">${allElev} m</div><div style="font-size:10px;color:#bbb;margin-top:1px;">Elevation gain</div></div>
-  </div>`;
+  el.innerHTML=
+    hdr(`${year} · ${sportLbl}`)+
+    grid(
+      cell(avgActsWk, avgLbl),
+      cell(avgTimeWk, 'Avg Time/Week'),
+      cell(avgDistWk+' km', 'Avg Distance/Week'),
+      cell(yearFiltered.length, 'Total Activities'),
+      cell(totalDist+' km', 'Total Distance'),
+      cell(totalTimeStr, 'Total Time'),
+      cell(totalElev+' m', 'Elevation Gain')
+    )+
+    hdr(`All Time · ${sportLbl}`)+
+    grid(
+      cell(allFiltered.length, 'Activities'),
+      cell(allDist+' km', 'Total Distance'),
+      cell(allTimeStr, 'Total Time'),
+      cell(allElev+' m', 'Elevation Gain')
+    );
 }
 
 let ovProgressChart=null, ovSport='Run';
