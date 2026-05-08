@@ -874,6 +874,7 @@ async function saveGoals(){
   });
   try{await fetch('/goals',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(goals)});}catch(e){}
   const b=document.querySelector('.save-btn');if(b){b.textContent='Saved!';setTimeout(()=>b.textContent='Save All Goals',1500);}
+  if(allActs.length>0)renderOvProgress();
 }
 async function loadGoalsFromServer(){
   try{
@@ -941,6 +942,9 @@ function showTab(name,el){
    renderStats();
    setTimeout(()=>{[trendChart,volChart,progChart].forEach(c=>{if(c)c.resize();});},50);
   });
+ }
+ if(name==='overview'&&allActs.length>0){
+  requestAnimationFrame(()=>renderOvProgress());
  }
 }
 
