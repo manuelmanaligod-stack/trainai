@@ -1,0 +1,5 @@
+gear2.db
+goals_backup.json
+__pycache__/
+*.pyc
+.DS_Store

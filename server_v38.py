@@ -59,6 +59,10 @@ def init_db():
             date        TEXT,
             activity    TEXT
         );
+        CREATE TABLE IF NOT EXISTS goals (
+            key   TEXT PRIMARY KEY,
+            value TEXT
+        );
         CREATE TABLE IF NOT EXISTS sync_log (
             id          INTEGER PRIMARY KEY CHECK (id = 1),
             last_sync   REAL,
@@ -283,6 +287,7 @@ Return ONLY valid JSON (no markdown):
             )
             raw = resp.choices[0].message.content.replace("```json","").replace("```","").strip()
             raw = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', raw)
+            raw = raw.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
             s, e = raw.find('{'), raw.rfind('}') + 1
             if s >= 0 and e > s: raw = raw[s:e]
             result = json.loads(raw)
@@ -317,6 +322,20 @@ def update_activity_ai(workouts_ai):
                     WHERE strava_id=?
                 """, (w.get("highlight",""), w.get("description",""), w.get("comparison",""), row["strava_id"]))
 
+GOALS_FILE = "goals_backup.json"
+
+def load_goals_from_file():
+    try:
+        if os.path.exists(GOALS_FILE):
+            with open(GOALS_FILE) as f: return json.load(f)
+    except: pass
+    return {}
+
+def save_goals_to_file(goals):
+    try:
+        with open(GOALS_FILE, "w") as f: json.dump(goals, f)
+    except: pass
+
 def read_file(path):
     with open(path) as f: return f.read()
 
@@ -329,11 +348,48 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-type", "text/html")
             self.end_headers()
-            self.wfile.write(read_file("app_v35.html").encode())
+            self.wfile.write(read_file("app_v36.html").encode())
+        elif self.path == "/goals":
+            # Load from DB, fall back to file if DB is empty (Render spin-down)
+            with get_db() as conn:
+                rows = conn.execute("SELECT key, value FROM goals").fetchall()
+            goals = {r["key"]: r["value"] for r in rows}
+            if not goals:
+                goals = load_goals_from_file()
+                if goals:
+                    print("[Goals] DB empty, restored from file backup")
+                    with get_db() as conn:
+                        for k,v in goals.items():
+                            conn.execute("INSERT OR REPLACE INTO goals (key,value) VALUES (?,?)",(k,v))
+            body = json.dumps(goals).encode()
+            self.send_response(200)
+            self.send_header("Content-type", "application/json")
+            self.send_header("Content-Length", len(body))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(body)
         else:
             self.send_response(404); self.end_headers()
 
     def do_POST(self):
+        if self.path == "/goals":
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                body   = self.rfile.read(length) if length else b'{}'
+                goals  = json.loads(body)
+                with get_db() as conn:
+                    for k, v in goals.items():
+                        conn.execute("INSERT OR REPLACE INTO goals (key,value) VALUES (?,?)", (k, v))
+                save_goals_to_file(goals)  # also save to file for spin-down resilience
+                print(f"[Goals] Saved {len(goals)} keys")
+                self.send_response(200)
+                self.send_header("Content-type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"ok":true}')
+            except Exception as e:
+                self.send_response(500); self.end_headers()
+            return
+
         if self.path == "/analyze":
             try:
                 length = int(self.headers.get("Content-Length", 0))
@@ -352,8 +408,10 @@ class Handler(BaseHTTPRequestHandler):
 
                 # Decide whether to call Groq
                 cache_age = ai_cache_age()
+                cached_ai = get_ai_cache()
+                ai_empty  = not cached_ai or not cached_ai.get("summary") or cached_ai.get("summary") == "Tap Analyze again."
                 has_new   = new_count > 0
-                need_ai   = force_refresh or has_new or cache_age > AI_TTL
+                need_ai   = force_refresh or has_new or cache_age > AI_TTL or ai_empty
 
                 if need_ai:
                     reason = "force refresh" if force_refresh else f"{new_count} new workouts" if has_new else f"AI cache {int(cache_age/3600)}h old"
