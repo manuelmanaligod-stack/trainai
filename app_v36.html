@@ -583,6 +583,12 @@ canvas{width:100%!important;}
  <!-- Race Countdown (crimson, no card class) -->
  <div id="raceCard" style="display:none;margin:10px 14px 0;border-radius:14px;overflow:hidden;background:#C0365A;"></div>
 
+ <!-- Latest Activity (compact, top) -->
+ <div class="card" id="latestCard" style="display:none;margin-top:10px;">
+ <div class="card-hdr"><div class="card-title">Latest Activity</div><div class="card-badge" id="latestBadge">—</div></div>
+ <div id="latestBody"></div>
+ </div>
+
  <!-- Progress chart -->
  <div class="card" id="ovProgressCard" style="display:none;margin-top:10px;">
   <div class="card-hdr">
@@ -590,20 +596,21 @@ canvas{width:100%!important;}
     <div class="card-badge" id="ovProgressBadge">—</div>
   </div>
   <div style="padding:8px 13px 0;">
-    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px;" id="ovProgressFilter">
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;" id="ovProgressFilter">
       <div class="hist-btn active" onclick="setOvSport('Run',this)">Run</div>
       <div class="hist-btn" onclick="setOvSport('Walk',this)">Walk</div>
       <div class="hist-btn" onclick="setOvSport('Ride',this)">Ride</div>
       <div class="hist-btn" onclick="setOvSport('WeightTraining',this)">Strength</div>
       <div class="hist-btn" onclick="setOvSport('Swim',this)">Swim</div>
     </div>
+    <!-- This week stats row -->
+    <div id="ovWeekStats" style="display:flex;gap:6px;margin-bottom:12px;"></div>
+    <!-- Goal rings — Run only -->
+    <div id="ovGoalRings" style="display:none;margin-bottom:12px;"></div>
     <canvas id="ovProgressChart" height="120"></canvas>
   </div>
   <div style="font-size:10px;color:#bbb;text-align:center;padding:4px 0 10px;" id="ovProgressSummary"></div>
  </div>
-
- <!-- Week Progress rings -->
- <div class="card" id="weekProgressCard" style="display:none;margin-top:10px;"></div>
 
  <!-- Weekly Training Plan (with AI inside) -->
  <div class="card" id="wplanCard" style="display:none;">
@@ -611,14 +618,9 @@ canvas{width:100%!important;}
  <div class="wplan-wrap" id="wplanBody"></div>
  </div>
 
- <!-- Latest Activity -->
- <div class="card" id="latestCard" style="display:none;">
- <div class="card-hdr"><div class="card-title">Latest Activity</div><div class="card-badge" id="latestBadge">—</div></div>
- <div id="latestBody"></div>
- </div>
-
  <!-- AI body placeholder kept so JS doesn't break -->
  <div class="ai-body" id="aiBodyOv" style="display:none;"></div>
+ <div id="weekProgressCard" style="display:none;"></div>
 
 </div>
 
@@ -962,50 +964,38 @@ function renderLatestActivity(){
  const distStr=a.distance>0?`${a.distance} km`:'—';
  const durH=Math.floor(a.duration/60),durM=Math.round(a.duration%60);
  const timeStr=durH>0?`${durH}h ${durM}m`:`${Math.round(a.duration)}m`;
- const hrStr=a.avg_hr?`${Math.round(a.avg_hr)}`:'—';
- const paceStr=a.distance>0&&a.sport==='Run'?fmtPace(a.duration/a.distance):'—';
- // Streak calc — start from most recent workout, count back consecutive days
+ const hrStr=a.avg_hr?`${Math.round(a.avg_hr)} bpm`:'—';
+ const paceStr=a.distance>0&&a.sport==='Run'?fmtPace(a.duration/a.distance):'';
+ // Streak calc
  const dateset=new Set(allActs.map(x=>x.date));
  const sortedAllDates=[...dateset].sort().reverse();
- let streak=0;
- let streakStart='';
+ let streak=0,streakStart='';
  if(sortedAllDates.length){
-   // Start from newest activity date, count consecutive days back
    const newestDate=new Date(sortedAllDates[0]+'T12:00:00');
    let cur=new Date(newestDate);
-   while(true){
-     const ds=cur.toISOString().slice(0,10);
-     if(dateset.has(ds)){streak++;cur.setDate(cur.getDate()-1);}
-     else break;
-   }
-   // streakStart = the oldest date in the streak
+   while(true){const ds=cur.toISOString().slice(0,10);if(dateset.has(ds)){streak++;cur.setDate(cur.getDate()-1);}else break;}
    const startD=new Date(newestDate);startD.setDate(newestDate.getDate()-(streak-1));
    streakStart=startD.toLocaleDateString('en-US',{month:'short',day:'numeric'});
  }
  const weekSet=new Set(allActs.map(x=>{const ddd=new Date(x.date+'T12:00:00'),dy=ddd.getDay(),dff=dy===0?-6:1-dy;const m=new Date(ddd);m.setDate(ddd.getDate()+dff);return m.toISOString().slice(0,10);}));
  const firstActivity=sortedAllDates.length?new Date(sortedAllDates[sortedAllDates.length-1]+'T12:00:00').toLocaleDateString('en-US',{month:'short',year:'numeric'}):'';
  document.getElementById('latestBadge').textContent=a.date;
+ // Compact layout: name + inline stats chips + streak row
+ const chips=[];
+ if(a.distance>0)chips.push(`<span style="font-size:12px;font-weight:600;color:#1a1a1a;">${distStr}</span><span style="font-size:10px;color:#bbb;margin-left:2px;">dist</span>`);
+ chips.push(`<span style="font-size:12px;font-weight:600;color:#1a1a1a;">${timeStr}</span><span style="font-size:10px;color:#bbb;margin-left:2px;">time</span>`);
+ if(a.avg_hr)chips.push(`<span style="font-size:12px;font-weight:600;color:${hrClr};">${hrStr}</span>`);
+ if(paceStr)chips.push(`<span style="font-size:12px;font-weight:600;color:#1a1a1a;">${paceStr}/km</span><span style="font-size:10px;color:#bbb;margin-left:2px;">pace</span>`);
  document.getElementById('latestBody').innerHTML=`
- <div class="latest-wrap">
- <div class="latest-name">${a.name}</div>
- <div class="latest-stats">
- <div class="latest-stat"><div class="latest-stat-val">${distStr}</div><div class="latest-stat-lbl">Distance</div></div>
- <div class="latest-stat"><div class="latest-stat-val">${timeStr}</div><div class="latest-stat-lbl">Time</div></div>
- <div class="latest-stat"><div class="latest-stat-val" style="color:${hrClr}">${hrStr}</div><div class="latest-stat-lbl">Avg HR</div></div>
- </div>
- ${a.sport==='Run'&&paceStr!=='—'?`<div class="latest-meta">Avg Pace: <strong>${paceStr} /km</strong>${a.avg_hr?` · HR Zone: <strong style="color:${hrClr}">${ZN[zone]}</strong>`:''}</div>`:''}
- <div style="display:flex;gap:16px;margin-top:10px;padding-top:10px;border-top:1px solid #f5f5f5;">
- <div>
-   <div style="font-size:20px;font-weight:700;color:#C0365A;">${streak}</div>
-   <div style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;">Day Streak</div>
-   ${streak>0?`<div style="font-size:9px;color:#bbb;margin-top:1px;">since ${streakStart}</div>`:'<div style="font-size:9px;color:#bbb;margin-top:1px;">rest day today</div>'}
- </div>
- <div>
-   <div style="font-size:20px;font-weight:700;color:#1a1a1a;">${weekSet.size}</div>
-   <div style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;">Active Weeks</div>
-   <div style="font-size:9px;color:#bbb;margin-top:1px;">since ${firstActivity}</div>
- </div>
- </div>
+ <div style="padding:0 13px 12px;">
+   <div style="font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:8px;">${a.name}</div>
+   <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:baseline;margin-bottom:10px;">${chips.map(c=>`<div>${c}</div>`).join('')}</div>
+   <div style="display:flex;gap:20px;padding-top:10px;border-top:1px solid #f5f5f5;">
+     <div><span style="font-size:16px;font-weight:700;color:#C0365A;">${streak}</span><span style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:.5px;margin-left:4px;">Day Streak</span>${streak>0?`<div style="font-size:9px;color:#bbb;margin-top:1px;">since ${streakStart}</div>`:''}
+     </div>
+     <div><span style="font-size:16px;font-weight:700;color:#1a1a1a;">${weekSet.size}</span><span style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:.5px;margin-left:4px;">Active Weeks</span><div style="font-size:9px;color:#bbb;margin-top:1px;">since ${firstActivity}</div>
+     </div>
+   </div>
  </div>`;
  document.getElementById('latestCard').style.display='block';
 }
@@ -1097,17 +1087,6 @@ function renderRaceCountdown(thisWeek,wRuns,wKm){
   </div>
 </div>`;
  document.getElementById('raceCard').style.display='block';
-
- // Render week progress rings in their own card
- const wpEl=document.getElementById('weekProgressCard');
- if(wpEl&&(wGoalKm>0||wGoalRuns>0)){
-  wpEl.innerHTML=`<div class="card-hdr"><div class="card-title">This Week's Progress</div></div>
-  <div style="padding:8px 0 4px;">
-  <div style="display:flex;gap:8px;justify-content:center;">${wGoalKm>0?ring(wKmVal,wGoalKm,'KM','#C0365A'):''}${wGoalRuns>0?ring(wRunCount,wGoalRuns,'Runs','#C0365A'):''}</div>
-  <div style="font-size:11px;color:#888;margin-top:6px;text-align:center;padding-bottom:12px;">${wMins} min active · ${weekCount} workouts this week</div>
-  </div>`;
-  wpEl.style.display='block';
- }
 }
 // ── WEEKLY TRAINING PLAN ─────────────────────────────────────────────
 function renderWeeklyPlan(){
@@ -1576,9 +1555,56 @@ function setOvSport(s,el){
 
 function renderOvProgress(){
   const isStrength=ovSport==='WeightTraining';
+  const isSwim=ovSport==='Swim';
   const cv=document.getElementById('ovProgressChart');
   if(!cv)return;
-  // Last 13 weeks
+
+  // This week bounds
+  const monStr=getMon(),sunStr=getSun();
+  const weekFiltered=allActs.filter(a=>a.date>=monStr&&a.date<=sunStr&&a.sport===ovSport);
+  const weekDist=weekFiltered.reduce((s,a)=>s+a.distance,0);
+  const weekMins=weekFiltered.reduce((s,a)=>s+a.duration,0);
+  const weekElev=weekFiltered.reduce((s,a)=>s+(a.elev||0),0);
+  const wH=Math.floor(weekMins/60),wM=Math.round(weekMins%60);
+  const weekTimeStr=wH>0?`${wH}h ${wM}m`:`${wM}m`;
+
+  // Week stats row
+  const statsEl=document.getElementById('ovWeekStats');
+  if(statsEl){
+    const sc=(val,lbl)=>`<div style="flex:1;background:#f8f8f6;border-radius:10px;padding:8px 10px;"><div style="font-size:15px;font-weight:700;color:#1a1a1a;">${val}</div><div style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;">${lbl}</div></div>`;
+    let cells='';
+    if(!isStrength)cells+=sc(weekDist.toFixed(1)+' km','Distance');
+    cells+=sc(weekTimeStr,'Time');
+    if(!isStrength&&!isSwim)cells+=sc(Math.round(weekElev)+' m','Elev Gain');
+    statsEl.innerHTML=cells;
+    statsEl.style.display='flex';
+  }
+
+  // Goal rings — Run only
+  const goalsEl=document.getElementById('ovGoalRings');
+  if(goalsEl){
+    if(ovSport==='Run'){
+      const g=getGoals();
+      const wGoalKm=parseFloat(g['weekly-km'])||0;
+      const wGoalRuns=parseInt(g['weekly-runs'])||0;
+      const wRunCount=allActs.filter(a=>a.date>=monStr&&a.date<=sunStr&&a.sport==='Run').length;
+      if(wGoalKm>0||wGoalRuns>0){
+        function ring(val,goal,label,clr){
+          const pct=goal>0?Math.min(val/goal,1):0;
+          const r=34,circ=+(2*Math.PI*r).toFixed(1),offset=+(circ*(1-pct)).toFixed(1);
+          const c=(goal>0&&val>=goal)?'#4cd964':clr;
+          const display=Number.isInteger(val)?val:val.toFixed(1);
+          return `<div style="text-align:center;flex:1;"><svg width="80" height="80" viewBox="0 0 80 80"><circle cx="40" cy="40" r="${r}" fill="none" stroke="#f0ede8" stroke-width="8"/><circle cx="40" cy="40" r="${r}" fill="none" stroke="${c}" stroke-width="8" stroke-dasharray="${circ}" stroke-dashoffset="${offset}" stroke-linecap="round" transform="rotate(-90 40 40)"/><text x="40" y="38" text-anchor="middle" font-size="15" font-weight="700" fill="#1a1a1a" font-family="DM Sans,sans-serif">${display}</text><text x="40" y="51" text-anchor="middle" font-size="8" fill="#bbb" font-family="DM Sans,sans-serif">GOAL ${goal} ${label}</text></svg></div>`;
+        }
+        const totalWkMins=allActs.filter(a=>a.date>=monStr&&a.date<=sunStr).reduce((s,a)=>s+a.duration,0);
+        const wkActCount=allActs.filter(a=>a.date>=monStr&&a.date<=sunStr).length;
+        goalsEl.innerHTML=`<div style="display:flex;gap:8px;justify-content:center;">${wGoalKm>0?ring(weekDist,wGoalKm,'KM','#C0365A'):''}${wGoalRuns>0?ring(wRunCount,wGoalRuns,'Runs','#C0365A'):''}</div><div style="font-size:11px;color:#888;text-align:center;margin-top:4px;">${Math.round(totalWkMins)} min active · ${wkActCount} workouts this week</div>`;
+        goalsEl.style.display='block';
+      } else goalsEl.style.display='none';
+    } else goalsEl.style.display='none';
+  }
+
+  // Last 13 weeks chart
   const now=new Date();now.setHours(0,0,0,0);
   const day=now.getDay(),diff=day===0?-6:1-day;
   const thisMonday=new Date(now);thisMonday.setDate(now.getDate()+diff);
@@ -1595,8 +1621,7 @@ function renderOvProgress(){
   const unit=isStrength?'h':'km';
   const totalThisWeek=weeks[weeks.length-1].val;
   const totalAll=weeks.reduce((s,w)=>s+w.val,0);
-  const badge=isStrength?`${totalThisWeek}h this week`:`${totalThisWeek} km this week`;
-  document.getElementById('ovProgressBadge').textContent=badge;
+  document.getElementById('ovProgressBadge').textContent=isStrength?`${totalThisWeek}h this week`:`${totalThisWeek} km this week`;
   const summaryEl=document.getElementById('ovProgressSummary');
   if(summaryEl)summaryEl.textContent=`${totalAll.toFixed(1)} ${unit} · ${isStrength?'Strength':ovSport} · 13 weeks`;
   if(ovProgressChart)ovProgressChart.destroy();
