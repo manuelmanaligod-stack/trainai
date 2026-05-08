@@ -839,36 +839,47 @@ let trendChart=null, volChart=null;
 // ── GOALS — save to server + localStorage ────────────────────────────
 const SPORTS=['Run','Walk','Ride','WeightTraining','Swim'];
 function _wKey(sport,type){return `g-weekly-${type}-${sport}`;}
+// Buffer holds unsaved inputs for all sports so switching filters doesn't lose changes
+const pendingWeeklyGoals={};
+SPORTS.forEach(sp=>{pendingWeeklyGoals[sp]={km:null,time:null};});
+
+function _captureCurrentWeeklyInputs(){
+  const km=document.getElementById('g-weekly-km')?.value??'';
+  const time=document.getElementById('g-weekly-time')?.value??'';
+  pendingWeeklyGoals[goalSport].km=km;
+  pendingWeeklyGoals[goalSport].time=time;
+}
 function setGoalSport(s,el){
+  _captureCurrentWeeklyInputs(); // save whatever user typed before switching
   goalSport=s;
   document.querySelectorAll('#goalSportFilter .hist-btn').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
-  // Hide km for Strength/Swim, show for others
   const hideKm=s==='WeightTraining'||s==='Swim';
   const kmRow=document.querySelector('#g-weekly-km')?.closest('.gri');
   if(kmRow)kmRow.style.display=hideKm?'none':'flex';
-  // Load stored values for this sport
-  const km=localStorage.getItem(_wKey(s,'km'))||'';
-  const time=localStorage.getItem(_wKey(s,'time'))||'';
+  // Show pending (what user typed this session) or fall back to localStorage
+  const p=pendingWeeklyGoals[s];
+  const km=p.km!==null?p.km:(localStorage.getItem(_wKey(s,'km'))||'');
+  const time=p.time!==null?p.time:(localStorage.getItem(_wKey(s,'time'))||'');
   const kmEl=document.getElementById('g-weekly-km');
   const timeEl=document.getElementById('g-weekly-time');
   if(kmEl)kmEl.value=km;
   if(timeEl)timeEl.value=time;
 }
 async function saveGoals(){
-  // Save non-weekly keys as before
+  _captureCurrentWeeklyInputs(); // capture current sport's inputs before saving
+  // Save non-weekly keys
   const nonWeekly=GKEYS.filter(k=>k!=='g-weekly-km'&&k!=='g-weekly-time');
   nonWeekly.forEach(k=>{const e=document.getElementById(k);if(e)localStorage.setItem(k,e.value);});
-  // Save weekly targets for current goalSport
-  const kmVal=document.getElementById('g-weekly-km')?.value||'';
-  const timeVal=document.getElementById('g-weekly-time')?.value||'';
-  localStorage.setItem(_wKey(goalSport,'km'),kmVal);
-  localStorage.setItem(_wKey(goalSport,'time'),timeVal);
-  // Build full goals object for server
+  // Save ALL sports from pending buffer
   const goals={};
   nonWeekly.forEach(k=>{const e=document.getElementById(k);if(e&&e.value)goals[k]=e.value;});
   SPORTS.forEach(sp=>{
-    const km=localStorage.getItem(_wKey(sp,'km'));const time=localStorage.getItem(_wKey(sp,'time'));
+    const p=pendingWeeklyGoals[sp];
+    const km=p.km!==null?p.km:(localStorage.getItem(_wKey(sp,'km'))||'');
+    const time=p.time!==null?p.time:(localStorage.getItem(_wKey(sp,'time'))||'');
+    localStorage.setItem(_wKey(sp,'km'),km);
+    localStorage.setItem(_wKey(sp,'time'),time);
     if(km)goals[_wKey(sp,'km')]=km;
     if(time)goals[_wKey(sp,'time')]=time;
   });
@@ -2026,8 +2037,7 @@ function applyDesktopLayout(){
 }
 
 function applyData(data){
- loadGoals();
- // ensure goal inputs are populated before rendering cards
+ // goals are never reloaded here — only changed by saveGoals()
  allActs=data.activities;
  prIds=new Set();
  const _runs=allActs.filter(a=>a.sport==='Run'&&a.distance>0&&a.duration>0);
