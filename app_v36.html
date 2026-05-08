@@ -705,9 +705,10 @@ canvas{width:100%!important;}
  </div>
  </div>
  <div class="stabs" id="hrTabs" style="padding:0 13px 8px;gap:6px;flex-wrap:wrap;">
- <div class="stab active" onclick="setHrTab('last10',this)">Last 10</div>
- <div class="stab" onclick="setHrTab('week',this)">7 Days</div>
- <div class="stab" onclick="setHrTab('month',this)">Month</div>
+ <div class="stab active" onclick="setHrTab('thisweek',this)">This Week</div>
+ <div class="stab" onclick="setHrTab('2026',this)">2026</div>
+ <div class="stab" onclick="setHrTab('2025',this)">2025</div>
+ <div class="stab" onclick="setHrTab('all',this)">All Time</div>
  </div>
  <div id="hrZones" style="padding:0 13px 13px;"></div>
  </div>
@@ -830,7 +831,7 @@ let zoneMode='hr'; // 'hr' or 'pace'
 let allActs=[], allBE=[], aiSummary='', aiAnalysis='', aiNext={};
 let prIds=new Set();
 let wFilter='All', wYear=2026, wPage=0, openMonth=null, openMonthActs=[];
-let hrTab='last10', cTime='week', cType='distance', cSport='Run';
+let hrTab='thisweek', cTime='week', cType='distance', cSport='Run';
 let totalsYear='2026', totalsStatSport='all';
 let goalSport='Run';
 let trendChart=null, volChart=null;
@@ -1238,11 +1239,10 @@ function setHrTab(tab,el){
 
 function renderHrZones(tab){
  let acts,badge;
- if(tab==='last10'){acts=allActs.slice(0,10);badge='Last 10';}
- else if(tab==='week'){const d=new Date();d.setDate(d.getDate()-7);const ds=d.toISOString().slice(0,10);acts=allActs.filter(a=>a.date>=ds);badge='Past 7 days';}
- else if(tab==='month'){acts=allActs.filter(a=>a.date>=getMonthStart());badge='This month';}
- else if(tab.startsWith('m_')){const ym=tab.slice(2);acts=allActs.filter(a=>a.date&&a.date.startsWith(ym));const[y,m]=ym.split('-');badge=new Date(y,m-1).toLocaleDateString('en-US',{month:'long',year:'numeric'});}
- else{acts=allActs;badge='All';}
+ if(tab==='thisweek'){acts=allActs.filter(a=>a.date>=getMon()&&a.date<=getSun());badge='This Week';}
+ else if(tab==='2026'){acts=allActs.filter(a=>a.date.startsWith('2026'));badge='2026';}
+ else if(tab==='2025'){acts=allActs.filter(a=>a.date.startsWith('2025'));badge='2025';}
+ else{acts=allActs;badge='All Time';}
  document.getElementById('hrBadge').textContent=badge;
 
  if(zoneMode==='pace'){
@@ -1413,7 +1413,6 @@ function renderProgressChart(){
 // ── STATS ─────────────────────────────────────────────────────────────
 function renderStats(){
  renderStravaStats(totalsYear, totalsStatSport);
- buildHrMonthTabs();
  renderHrZones(hrTab);
 }
 
