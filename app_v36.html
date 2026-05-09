@@ -1384,7 +1384,7 @@ function renderMonthBlocks(){
  const body=document.createElement('div');
  body.style.cssText='display:flex;flex-direction:column;gap:8px;padding:8px 12px 12px;background:#f5f5f0;';
  body.innerHTML=mActs.map(a=>acHtml(a)).join('');
- const isCurrent=ym===currentYM;
+ const isCurrent=ym===currentYM||wMonth!=='all';
  hdr.style.cssText='padding:12px 14px;display:flex;align-items:center;cursor:pointer;user-select:none;';
  hdr.innerHTML=`<span class="mname">${mName}</span><span class="mstats" style="margin-left:8px;">${stats}</span><span style="margin-left:auto;font-size:14px;color:#bbb;transition:transform .2s;${isCurrent?'transform:rotate(180deg)':''}" class="marr">▾</span>`;
  body.style.display=isCurrent?'flex':'none';
