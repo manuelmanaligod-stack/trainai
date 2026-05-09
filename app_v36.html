@@ -681,11 +681,11 @@ canvas{width:100%!important;}
  </div>
  <!-- Sport filter -->
  <div class="hist-controls" id="totalsSportFilter" style="margin-bottom:12px;">
- <div class="hist-btn active" onclick="setTotalsSport('all',this)">All</div>
- <div class="hist-btn" onclick="setTotalsSport('Run',this)">Run</div>
+ <div class="hist-btn active" onclick="setTotalsSport('Run',this)">Run</div>
  <div class="hist-btn" onclick="setTotalsSport('Walk',this)">Walk</div>
  <div class="hist-btn" onclick="setTotalsSport('Ride',this)">Ride</div>
  <div class="hist-btn" onclick="setTotalsSport('WeightTraining',this)">Strength</div>
+ <div class="hist-btn" onclick="setTotalsSport('all',this)">All</div>
  </div>
  <!-- Stats grid -->
  <div id="stravaStats"></div>
@@ -838,7 +838,7 @@ let allActs=[], allBE=[], aiSummary='', aiAnalysis='', aiNext={};
 let prIds=new Set();
 let wFilter='All', wYear=2026, wPage=0, openMonth=null, openMonthActs=[];
 let hrTab='thisweek', cTime='week', cType='distance', cSport='Run';
-let totalsYear='2026', totalsStatSport='all';
+let totalsYear='2026', totalsStatSport='Run';
 let goalSport='Run';
 let trendChart=null, volChart=null;
 
@@ -1024,8 +1024,11 @@ function toggleHrMonthDrop(){
  const isOpen=drop.style.display!=='none';
  if(isOpen){drop.style.display='none';return;}
  const r=btn.getBoundingClientRect();
+ const dropW=180;
+ const left=r.left+dropW>window.innerWidth?r.right-dropW:r.left;
  drop.style.top=(r.bottom+6)+'px';
- drop.style.left=r.left+'px';
+ drop.style.left=Math.max(8,left)+'px';
+ drop.style.minWidth=dropW+'px';
  drop.style.display='block';
  setTimeout(()=>document.addEventListener('click',function h(e){
   if(!drop.contains(e.target)&&e.target!==btn){
@@ -1099,9 +1102,9 @@ function renderLatestActivity(){
    <div style="font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:8px;">${a.name}</div>
    <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:baseline;margin-bottom:10px;">${chips.map(c=>`<div>${c}</div>`).join('')}</div>
    <div style="display:flex;gap:20px;padding-top:10px;border-top:1px solid #f5f5f5;">
-     <div><span style="font-size:16px;font-weight:700;color:#C0365A;">${streak}</span><span style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:.5px;margin-left:4px;">Day Streak</span>${streak>0?`<div style="font-size:9px;color:#bbb;margin-top:1px;">since ${streakStart}</div>`:''}
+     <div><span style="font-size:16px;font-weight:700;color:#C0365A;">${streak}</span><span style="font-size:9px;font-weight:700;color:#C0365A;text-transform:uppercase;letter-spacing:.5px;margin-left:4px;">Day Streak</span>${streak>0?`<div style="font-size:9px;color:#bbb;margin-top:1px;">since ${streakStart}</div>`:''}
      </div>
-     <div><span style="font-size:16px;font-weight:700;color:#1a1a1a;">${weekSet.size}</span><span style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:.5px;margin-left:4px;">Active Weeks</span><div style="font-size:9px;color:#bbb;margin-top:1px;">since ${firstActivity}</div>
+     <div><span style="font-size:16px;font-weight:700;color:#1a1a1a;">${weekSet.size}</span><span style="font-size:9px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:.5px;margin-left:4px;">Active Weeks</span><div style="font-size:9px;color:#bbb;margin-top:1px;">since ${firstActivity}</div>
      </div>
    </div>
    <div style="font-size:11px;color:#888;margin-top:8px;">${(()=>{const mon=getMon(),sun=getSun();const wk=allActs.filter(x=>x.date>=mon&&x.date<=sun);const wkMins=Math.round(wk.reduce((s,x)=>s+x.duration,0));return `${wkMins} min active · ${wk.length} workouts this week`;})()}</div>
@@ -1370,24 +1373,19 @@ function renderMonthBlocks(){
  document.getElementById('pgRow').style.display='none';
  openMonth=null;openMonthActs=[];
  if(!months.length){container.innerHTML='<div style="padding:20px;text-align:center;font-size:12px;color:#bbb;">No workouts found</div>';return;}
- months.forEach((ym,idx)=>{
+ months.forEach(ym=>{
  const mActs=byM[ym];
  const[y,m]=ym.split('-'),mName=new Date(y,m-1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
  const km=mActs.filter(a=>a.distance>0).reduce((s,a)=>s+a.distance,0);
- const stats=`${mActs.length} activities${km>0?' · '+km.toFixed(1)+'km':''}`;
+ const stats=`${mActs.length} activities${km>0?' · '+km.toFixed(1)+' km':''}`;
  const block=document.createElement('div');block.className='mblock';block.id='mb-'+ym;
- const hdr=document.createElement('div');hdr.className='mhdr';
- hdr.innerHTML=`<span class="mname">${mName}</span><span class="mstats">${stats}</span><span class="marr" id="arr-${ym}">▾</span>`;
- const body=document.createElement('div');body.className='mbody';body.id='bd-'+ym;
- hdr.onclick=()=>{
- const wasOpen=body.classList.contains('open');
- document.querySelectorAll('.mbody.open').forEach(b=>b.classList.remove('open'));
- document.querySelectorAll('.marr.open').forEach(a=>a.classList.remove('open'));
- document.getElementById('pgRow').style.display='none';
- if(!wasOpen){body.classList.add('open');document.getElementById('arr-'+ym).classList.add('open');openMonth=ym;openMonthActs=mActs;wPage=0;renderPaged(body,mActs);}
- };
+ const hdr=document.createElement('div');
+ hdr.style.cssText='padding:12px 14px 8px;border-bottom:1px solid #f5f5f5;';
+ hdr.innerHTML=`<span class="mname">${mName}</span><span class="mstats" style="margin-left:8px;">${stats}</span>`;
+ const body=document.createElement('div');
+ body.style.cssText='display:flex;flex-direction:column;gap:8px;padding:8px 12px 12px;background:#f5f5f0;';
+ body.innerHTML=mActs.map(a=>acHtml(a)).join('');
  block.appendChild(hdr);block.appendChild(body);container.appendChild(block);
- if(idx===0){body.classList.add('open');document.getElementById('arr-'+ym).classList.add('open');openMonth=ym;openMonthActs=mActs;wPage=0;renderPaged(body,mActs);}
  });
 }
 
@@ -1747,7 +1745,7 @@ function renderOvProgress(){
   ovProgressChart=new Chart(cv.getContext('2d'),{
     type:'line',
     data:{labels:weeks.map(w=>w.label),datasets:[{data:weeks.map(w=>w.val),borderColor:clr,backgroundColor:clr+'22',borderWidth:2,pointRadius:weeks.map(w=>w.isCurrent?7:4),pointBackgroundColor:weeks.map(w=>w.isCurrent?clr:'#fff'),pointBorderColor:clr,pointBorderWidth:2,tension:0.35,fill:true}]},
-    options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.parsed.y} ${unit}`}}},scales:{x:{grid:{display:false},ticks:{font:{size:9},color:'#bbb',maxRotation:45,maxTicksLimit:13}},y:{grid:{color:'#f5f5f5'},ticks:{font:{size:9},color:'#bbb'},beginAtZero:true}}},
+    options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.parsed.y} ${unit}`}}},scales:{x:{grid:{display:false},ticks:{font:{size:9},color:'#bbb',maxRotation:45,maxTicksLimit:13}},y:{grid:{color:'#f5f5f5'},max:Math.max(...weeks.map(w=>w.val),1),ticks:{font:{size:9},color:'#bbb',maxTicksLimit:4,callback:v=>`${v} ${unit}`},beginAtZero:true}}},
     plugins:[vertLinePlugin]
   });
   document.getElementById('ovProgressCard').style.display='block';
