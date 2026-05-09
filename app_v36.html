@@ -1097,9 +1097,14 @@ function renderLatestActivity(){
  chips.push(`<span style="font-size:12px;font-weight:600;color:#1a1a1a;">${timeStr}</span><span style="font-size:10px;color:#bbb;margin-left:2px;">time</span>`);
  if(a.avg_hr)chips.push(`<span style="font-size:12px;font-weight:600;color:${hrClr};">${hrStr}</span>`);
  if(paceStr)chips.push(`<span style="font-size:12px;font-weight:600;color:#1a1a1a;">${paceStr}/km</span><span style="font-size:10px;color:#bbb;margin-left:2px;">pace</span>`);
+ const zt=estimateZones(a.avg_hr,a.duration,a.sport);
+ const tot=zt?zt.reduce((s,t)=>s+t,0):0;
+ const domZoneIdx=zt&&tot>0?zt.indexOf(Math.max(...zt)):-1;
+ const domZone=domZoneIdx>=0&&a.avg_hr?ZN[domZoneIdx]:'';
  document.getElementById('latestBody').innerHTML=`
  <div style="padding:0 13px 12px;">
-   <div style="font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:8px;">${a.name}</div>
+   <div style="font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:4px;">${a.name}</div>
+   ${domZone?`<div class="ac-type" style="margin-bottom:8px;">${domZone}</div>`:''}
    <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:baseline;margin-bottom:10px;">${chips.map(c=>`<div>${c}</div>`).join('')}</div>
    <div style="display:flex;gap:20px;padding-top:10px;border-top:1px solid #f5f5f5;">
      <div><span style="font-size:16px;font-weight:700;color:#C0365A;">${streak}</span><span style="font-size:9px;font-weight:700;color:#C0365A;text-transform:uppercase;letter-spacing:.5px;margin-left:4px;">Day Streak</span>${streak>0?`<div style="font-size:9px;color:#bbb;margin-top:1px;">since ${streakStart}</div>`:''}
