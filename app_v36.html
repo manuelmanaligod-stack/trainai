@@ -712,7 +712,6 @@ canvas{width:100%!important;}
  <!-- Month dropdown -->
  <div style="position:relative;" id="hrMonthDropWrap">
    <div class="stab" id="hrMonthDropBtn" onclick="toggleHrMonthDrop()" style="cursor:pointer;">Month ▾</div>
-   <div id="hrMonthDrop" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:#fff;border:1px solid #ebebeb;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.1);z-index:200;min-width:110px;max-height:220px;overflow-y:auto;padding:4px 0;"></div>
  </div>
  </div>
  <div id="hrZones" style="padding:0 13px 13px;"></div>
@@ -741,6 +740,7 @@ canvas{width:100%!important;}
  </div>
  <div class="gri"><div class="gri-lbl">Weekly km</div><input class="gri-inp" id="g-weekly-km" type="number" placeholder="0"><div class="gri-unit">km</div></div>
  <div class="gri" id="gri-weekly-time"><div class="gri-lbl">Weekly time</div><input class="gri-inp" id="g-weekly-time" type="number" placeholder="0"><div class="gri-unit">hours</div></div>
+ <div class="gri" id="gri-weekly-elev"><div class="gri-lbl">Weekly elev</div><input class="gri-inp" id="g-weekly-elev" type="number" placeholder="0"><div class="gri-unit">meters</div></div>
  </div>
  <div class="card" style="margin-top:8px;">
  <div class="card-hdr"><div class="card-title">VO2 Max</div></div>
@@ -781,6 +781,7 @@ canvas{width:100%!important;}
 
 </div><!-- /main-content -->
 </div><!-- /page -->
+<div id="hrMonthDrop" style="display:none;position:fixed;background:#fff;border:1px solid #ebebeb;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15);z-index:9999;min-width:150px;max-height:240px;overflow-y:auto;padding:4px 0;"></div>
 </div><!-- /app-shell -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
@@ -847,13 +848,15 @@ const SPORTS=['Run','Walk','Ride','WeightTraining','Swim'];
 function _wKey(sport,type){return `g-weekly-${type}-${sport}`;}
 // Buffer holds unsaved inputs for all sports so switching filters doesn't lose changes
 const pendingWeeklyGoals={};
-SPORTS.forEach(sp=>{pendingWeeklyGoals[sp]={km:null,time:null};});
+SPORTS.forEach(sp=>{pendingWeeklyGoals[sp]={km:null,time:null,elev:null};});
 
 function _captureCurrentWeeklyInputs(){
   const km=document.getElementById('g-weekly-km')?.value??'';
   const time=document.getElementById('g-weekly-time')?.value??'';
+  const elev=document.getElementById('g-weekly-elev')?.value??'';
   pendingWeeklyGoals[goalSport].km=km;
   pendingWeeklyGoals[goalSport].time=time;
+  pendingWeeklyGoals[goalSport].elev=elev;
 }
 function setGoalSport(s,el){
   _captureCurrentWeeklyInputs(); // save whatever user typed before switching
@@ -867,10 +870,15 @@ function setGoalSport(s,el){
   const p=pendingWeeklyGoals[s];
   const km=p.km!==null?p.km:(localStorage.getItem(_wKey(s,'km'))||'');
   const time=p.time!==null?p.time:(localStorage.getItem(_wKey(s,'time'))||'');
+  const elev=p.elev!==null?p.elev:(localStorage.getItem(_wKey(s,'elev'))||'');
   const kmEl=document.getElementById('g-weekly-km');
   const timeEl=document.getElementById('g-weekly-time');
+  const elevEl=document.getElementById('g-weekly-elev');
+  const elevRow=document.getElementById('gri-weekly-elev');
   if(kmEl)kmEl.value=km;
   if(timeEl)timeEl.value=time;
+  if(elevEl)elevEl.value=elev;
+  if(elevRow)elevRow.style.display=(s==='WeightTraining'||s==='Swim')?'none':'flex';
 }
 async function saveGoals(){
   _captureCurrentWeeklyInputs(); // capture current sport's inputs before saving
@@ -884,10 +892,13 @@ async function saveGoals(){
     const p=pendingWeeklyGoals[sp];
     const km=p.km!==null?p.km:(localStorage.getItem(_wKey(sp,'km'))||'');
     const time=p.time!==null?p.time:(localStorage.getItem(_wKey(sp,'time'))||'');
+    const elev=p.elev!==null?p.elev:(localStorage.getItem(_wKey(sp,'elev'))||'');
     localStorage.setItem(_wKey(sp,'km'),km);
     localStorage.setItem(_wKey(sp,'time'),time);
+    localStorage.setItem(_wKey(sp,'elev'),elev);
     if(km)goals[_wKey(sp,'km')]=km;
     if(time)goals[_wKey(sp,'time')]=time;
+    if(elev)goals[_wKey(sp,'elev')]=elev;
   });
   try{await fetch('/goals',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(goals)});}catch(e){}
   const b=document.querySelector('.save-btn');if(b){b.textContent='Saved!';setTimeout(()=>b.textContent='Save All Goals',1500);}
@@ -901,7 +912,7 @@ async function loadGoalsFromServer(){
     GKEYS.forEach(k=>{if(g[k]){localStorage.setItem(k,g[k]);const e=document.getElementById(k);if(e)e.value=g[k];}});
     // Load per-sport weekly targets into localStorage
     SPORTS.forEach(sp=>{
-      ['km','time'].forEach(t=>{const k=_wKey(sp,t);if(g[k])localStorage.setItem(k,g[k]);});
+      ['km','time','elev'].forEach(t=>{const k=_wKey(sp,t);if(g[k])localStorage.setItem(k,g[k]);});
     });
     console.log('[Goals] Loaded from server');
   }catch(e){console.warn('[Goals] Server load failed, using localStorage');}
@@ -917,8 +928,8 @@ function loadGoals(){
 function getGoals(){const g={};GKEYS.forEach(k=>{const e=document.getElementById(k);if(e)g[k.replace('g-','')]=e.value;});return g;}
 
 // ── DATE HELPERS ─────────────────────────────────────────────────────
-function getMon(){const n=new Date(),day=n.getDay(),diff=day===0?-6:1-day,m=new Date(n);m.setDate(n.getDate()+diff);return m.toISOString().slice(0,10);}
-function getSun(){const m=getMon(),d=new Date(m);d.setDate(d.getDate()+6);return d.toISOString().slice(0,10);}
+function getMon(){const n=new Date(),day=n.getDay(),diff=day===0?-6:1-day,m=new Date(n);m.setDate(n.getDate()+diff);return `${m.getFullYear()}-${String(m.getMonth()+1).padStart(2,'0')}-${String(m.getDate()).padStart(2,'0')}`;}
+function getSun(){const n=new Date(getMon()+'T12:00:00');n.setDate(n.getDate()+6);return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; }
 function getMonthStart(){const n=new Date();return new Date(n.getFullYear(),n.getMonth(),1).toISOString().slice(0,10);}
 
 // ── OTHER HELPERS ────────────────────────────────────────────────────
@@ -1008,17 +1019,19 @@ function buildHrMonthTabs(){
 }
 function toggleHrMonthDrop(){
  const drop=document.getElementById('hrMonthDrop');
- if(!drop)return;
+ const btn=document.getElementById('hrMonthDropBtn');
+ if(!drop||!btn)return;
  const isOpen=drop.style.display!=='none';
- drop.style.display=isOpen?'none':'block';
- if(!isOpen){
-  // close on outside click
-  setTimeout(()=>document.addEventListener('click',function h(e){
-   if(!document.getElementById('hrMonthDropWrap')?.contains(e.target)){
-    drop.style.display='none';document.removeEventListener('click',h);
-   }
-  }),0);
- }
+ if(isOpen){drop.style.display='none';return;}
+ const r=btn.getBoundingClientRect();
+ drop.style.top=(r.bottom+6)+'px';
+ drop.style.left=r.left+'px';
+ drop.style.display='block';
+ setTimeout(()=>document.addEventListener('click',function h(e){
+  if(!drop.contains(e.target)&&e.target!==btn){
+   drop.style.display='none';document.removeEventListener('click',h);
+  }
+ }),0);
 }
 
 function setZoneMode(mode,el){
@@ -1287,7 +1300,8 @@ function renderHrZones(tab){
  const totals=[0,0,0,0,0];
  runs.forEach(a=>{const ez=estimatePaceZones(a.duration/a.distance,a.duration,a.sport);if(ez)ez.forEach((t,i)=>totals[i]+=t);});
  const grand=totals.reduce((s,t)=>s+t,0)||1,maxT=Math.max(...totals,1);
- document.getElementById('hrZones').innerHTML=`<div class="zlbl">Time in each pace zone · runs only</div>`+
+ const paceHdr=`<div class="zrow" style="padding-bottom:5px;margin-bottom:4px;border-bottom:1px solid #f5f5f5;"><div class="zr-dot" style="background:transparent"></div><div class="zr-name"></div><div class="zr-range" style="font-size:9px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.5px;">min/km</div><div style="flex:1;"></div><div class="zr-time" style="font-size:9px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.5px;">Time</div><div class="zr-pct" style="font-size:9px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.5px;">%</div></div>`;
+ document.getElementById('hrZones').innerHTML=paceHdr+
  totals.map((t,i)=>{const pct=Math.round(t/grand*100);
  return `<div class="zrow"><div class="zr-dot" style="background:${PZC[i]}"></div><div class="zr-name">Z${i+1} ${PZN[i]}</div><div class="zr-range">${PZR[i]}</div><div class="zr-track"><div class="zr-fill" style="width:${pct}%;background:${PZC[i]}"></div></div><div class="zr-time">${fmtT2(t)}</div><div class="zr-pct">${pct}%</div></div>`;
  }).join('');
@@ -1295,9 +1309,10 @@ function renderHrZones(tab){
  const totals=[0,0,0,0,0];
  acts.forEach(a=>{const e=estimateZones(a.avg_hr,a.duration,a.sport);if(e)e.forEach((t,i)=>totals[i]+=t);});
  const grand=totals.reduce((s,t)=>s+t,0)||1,maxT=Math.max(...totals,1);
- document.getElementById('hrZones').innerHTML=`<div class="zlbl">Time in each zone</div>`+
+ const hrHdr=`<div class="zrow" style="padding-bottom:5px;margin-bottom:4px;border-bottom:1px solid #f5f5f5;"><div class="zr-dot" style="background:transparent"></div><div class="zr-name"></div><div class="zr-range" style="font-size:9px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.5px;">BPM</div><div style="flex:1;"></div><div class="zr-time" style="font-size:9px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.5px;">Time</div><div class="zr-pct" style="font-size:9px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.5px;">%</div></div>`;
+ document.getElementById('hrZones').innerHTML=hrHdr+
  totals.map((t,i)=>{const pct=Math.round(t/grand*100);
- return `<div class="zrow"><div class="zr-dot" style="background:${ZC[i]}"></div><div class="zr-name">Z${i+1} ${ZN[i]}</div><div class="zr-range">${ZR[i]} bpm</div><div class="zr-track"><div class="zr-fill" style="width:${pct}%;background:${ZC[i]}"></div></div><div class="zr-time">${fmtT2(t)}</div><div class="zr-pct">${pct}%</div></div>`;
+ return `<div class="zrow"><div class="zr-dot" style="background:${ZC[i]}"></div><div class="zr-name">Z${i+1} ${ZN[i]}</div><div class="zr-range">${ZR[i]}</div><div class="zr-track"><div class="zr-fill" style="width:${pct}%;background:${ZC[i]}"></div></div><div class="zr-time">${fmtT2(t)}</div><div class="zr-pct">${pct}%</div></div>`;
  }).join('');
  }
 }
@@ -1675,7 +1690,7 @@ function renderOvProgress(){
     const pct=Math.min(val/goal,1);
     const met=val>=goal;
     const barClr=met?'#4cd964':'#1a1a1a';
-    const goalLbl=unit==='h'?`${goal}h`:`${goal} km`;
+    const goalLbl=unit==='h'?`${goal}h`:unit==='m'?`${goal} m`:`${goal} km`;
     return `<div style="margin-top:6px;"><div style="font-size:9px;color:#bbb;margin-bottom:3px;">Goal: ${goalLbl}</div><div style="height:6px;background:#ebebeb;border-radius:3px;overflow:hidden;"><div style="height:6px;width:${Math.round(pct*100)}%;background:${barClr};border-radius:3px;transition:width .4s;"></div></div></div>`;
   };
 
@@ -1683,12 +1698,13 @@ function renderOvProgress(){
   const statsEl=document.getElementById('ovWeekStats');
   const wGoalKm=parseFloat(localStorage.getItem(_wKey(ovSport,'km')))||0;
   const wGoalTimeH=parseFloat(localStorage.getItem(_wKey(ovSport,'time')))||0;
+  const wGoalElev=parseFloat(localStorage.getItem(_wKey(ovSport,'elev')))||0;
   if(statsEl){
     const sc=(val,lbl,barHtml)=>`<div style="flex:1;background:#f8f8f6;border-radius:10px;padding:8px 10px;"><div style="font-size:15px;font-weight:700;color:#1a1a1a;">${val}</div><div style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;">${lbl}</div>${barHtml||''}</div>`;
     let cells='';
     if(!isStrength)cells+=sc(weekDist.toFixed(1)+' km','Distance',wGoalKm?goalBar(weekDist,wGoalKm,'km'):'');
     cells+=sc(weekTimeStr,'Time',wGoalTimeH?goalBar(weekMins/60,wGoalTimeH,'h'):'');
-    if(!isStrength&&!isSwim)cells+=sc(Math.round(weekElev)+' m','Elev Gain','');
+    if(!isStrength&&!isSwim)cells+=sc(Math.round(weekElev)+' m','Elev Gain',wGoalElev?goalBar(weekElev,wGoalElev,'m'):'');
     statsEl.innerHTML=cells;
     statsEl.style.display='flex';
   }
