@@ -12,8 +12,8 @@ from groq import Groq
 STRAVA_CLIENT_ID     = os.environ.get("STRAVA_CLIENT_ID",     "234502")
 STRAVA_CLIENT_SECRET = os.environ.get("STRAVA_CLIENT_SECRET", "ce8eedc1d05808af8cfb2829c833abb5d69dc9f4")
 STRAVA_REFRESH_TOKEN = os.environ.get("STRAVA_REFRESH_TOKEN", "2ac675776dea85002172508cdeb748ec0fe1637c")
-GROQ_API_KEY         = os.environ.get("GROQ_API_KEY",         "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")
-GROQ_API_KEY_2       = os.environ.get("GROQ_API_KEY_2",       "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")
+GROQ_API_KEY         = os.environ.get("GROQ_API_KEY",         "")
+GROQ_API_KEY_2       = os.environ.get("GROQ_API_KEY_2",       "")
 DB_FILE              = os.environ.get("DB_FILE",               "gear2.db")
 AI_TTL               = 6 * 3600  # Re-run Groq if AI is older than 6hrs AND new workouts exist
 
