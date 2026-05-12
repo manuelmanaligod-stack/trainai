@@ -59,7 +59,7 @@ body{background:#fff;color:#1a1a1a;font-family:'DM Sans',sans-serif;min-height:1
 .card{background:#fff;border:none;border-radius:0;margin:0 14px;border-bottom:1px solid #ececec;padding:14px 0;overflow:visible;}
 .card:last-of-type{border-bottom:none;}
 .card-hdr{padding:0 13px 10px;border-bottom:none;display:flex;align-items:center;justify-content:space-between;}
-.card-title{font-size:10px;font-weight:600;color:#666;text-transform:uppercase;letter-spacing:.8px;}
+.card-title{font-size:14px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:.4px;}
 .card-badge{font-size:10px;color:#344f1f;font-weight:500;}
 .stabs-wrap{position:relative;}
 .stabs-wrap .scroll-arr{position:absolute;right:0;top:0;bottom:0;width:28px;display:flex;align-items:center;justify-content:center;background:linear-gradient(to right,transparent,#fff 60%);font-size:13px;color:#1a1a1a;pointer-events:none;padding-top:10px;}
@@ -473,6 +473,7 @@ canvas{width:100%!important;}
  .card{margin:0;border-radius:16px;transition:box-shadow .2s;}
  .card:hover{box-shadow:0 4px 20px rgba(0,0,0,.07);}
  .card-title{font-size:11px;letter-spacing:1px;}
+ .card-title{font-size:16px;}
  .card-badge{font-size:11px;}
  .card-hdr{padding:15px 20px 12px;}
  .sgv{font-size:28px;}
@@ -654,7 +655,7 @@ canvas{width:100%!important;}
 
  <!-- Weekly Training Plan (with AI inside) -->
  <div class="card" id="wplanCard" style="display:none;">
- <div class="card-hdr"><div class="card-title" style="color:#344f1f;letter-spacing:.6px;">This Week's Training Plan</div><div class="card-badge" id="wplanBadge">AI · 21K prep</div></div>
+ <div class="card-hdr" style="flex-direction:column;align-items:flex-start;gap:3px;"><div class="card-title" style="color:#344f1f;letter-spacing:.4px;">This Week's Training Plan</div><div id="wplanGoal" style="font-size:11px;color:#666;font-weight:500;">Goal: General Training</div></div>
  <div class="wplan-wrap" id="wplanBody"></div>
  </div>
 
@@ -685,11 +686,11 @@ canvas{width:100%!important;}
  <div class="fchip active" onclick="setWF('All',this)">All</div>
  <div class="fchip" onclick="setWF('Run',this)"><i class="fa-solid fa-person-running" style="margin-right:5px;"></i>Run</div>
  <div class="fchip" onclick="setWF('Walk',this)"><i class="fa-solid fa-person-walking" style="margin-right:5px;"></i>Walk</div>
+ <div class="fchip" onclick="setWF('Ride',this)"><i class="fa-solid fa-person-biking" style="margin-right:5px;"></i>Ride</div>
  <div class="fchip" onclick="setWF('WeightTraining',this)"><i class="fa-solid fa-dumbbell" style="margin-right:5px;"></i>Strength</div>
  <div class="fchip" onclick="setWF('Workout',this)"><i class="fa-solid fa-bolt" style="margin-right:5px;"></i>Workout</div>
- <div class="fchip" onclick="setWF('Ride',this)"><i class="fa-solid fa-person-biking" style="margin-right:5px;"></i>Ride</div>
- <div class="fchip" onclick="setWF('Hike',this)"><i class="fa-solid fa-mountain" style="margin-right:5px;"></i>Hike</div>
  <div class="fchip" onclick="setWF('Swim',this)"><i class="fa-solid fa-person-swimming" style="margin-right:5px;"></i>Swim</div>
+ <div class="fchip" onclick="setWF('Hike',this)"><i class="fa-solid fa-mountain" style="margin-right:5px;"></i>Hike</div>
  </div>
  <div class="scroll-arr">›</div>
  </div>
@@ -1163,12 +1164,12 @@ function renderLatestActivity(){
  const weekSet=new Set(allActs.map(x=>{const ddd=new Date(x.date+'T12:00:00'),dy=ddd.getDay(),dff=dy===0?-6:1-dy;const m=new Date(ddd);m.setDate(ddd.getDate()+dff);return m.toISOString().slice(0,10);}));
  const firstActivity=sortedAllDates.length?new Date(sortedAllDates[sortedAllDates.length-1]+'T12:00:00').toLocaleDateString('en-US',{month:'short',year:'numeric'}):'';
  document.getElementById('latestBadge').textContent=a.date;
- // Compact layout: name + inline stats chips + streak row
+ // Compact layout: name + stat cells (value above label) + streak row
  const chips=[];
- if(a.distance>0)chips.push(`<span style="font-size:12px;font-weight:600;color:#1a1a1a;">${distStr}</span><span style="font-size:10px;color:#1a1a1a;margin-left:2px;">dist</span>`);
- chips.push(`<span style="font-size:12px;font-weight:600;color:#1a1a1a;">${timeStr}</span><span style="font-size:10px;color:#1a1a1a;margin-left:2px;">time</span>`);
- if(a.avg_hr)chips.push(`<span style="font-size:12px;font-weight:600;color:${hrClr};">${hrStr}</span>`);
- if(paceStr)chips.push(`<span style="font-size:12px;font-weight:600;color:#1a1a1a;">${paceStr}/km</span><span style="font-size:10px;color:#1a1a1a;margin-left:2px;">pace</span>`);
+ if(a.distance>0)chips.push(`<div style="display:flex;flex-direction:column;align-items:flex-start;"><span style="font-size:14px;font-weight:700;color:#1a1a1a;">${distStr}</span><span style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.3px;margin-top:1px;">Distance</span></div>`);
+ if(paceStr)chips.push(`<div style="display:flex;flex-direction:column;align-items:flex-start;"><span style="font-size:14px;font-weight:700;color:#1a1a1a;">${paceStr}</span><span style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.3px;margin-top:1px;">Pace /km</span></div>`);
+ chips.push(`<div style="display:flex;flex-direction:column;align-items:flex-start;"><span style="font-size:14px;font-weight:700;color:#1a1a1a;">${timeStr}</span><span style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.3px;margin-top:1px;">Time</span></div>`);
+ if(a.avg_hr)chips.push(`<div style="display:flex;flex-direction:column;align-items:flex-start;"><span style="font-size:14px;font-weight:700;color:#1a1a1a;">${Math.round(a.avg_hr)}<span style="font-size:9px;font-weight:400;color:#1a1a1a"> bpm</span></span><span style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.3px;margin-top:1px;">AVG HR</span></div>`);
  const zt=estimateZones(a.avg_hr,a.duration,a.sport);
  const tot=zt?zt.reduce((s,t)=>s+t,0):0;
  const domZoneIdx=zt&&tot>0?zt.indexOf(Math.max(...zt)):-1;
@@ -1339,6 +1340,9 @@ function renderWeeklyPlan(){
  const monDate=new Date(today);monDate.setDate(today.getDate()+diff);
 
  const aiSection=(aiSummary&&aiSummary!=='Refresh to reload.')?`<div style="padding:10px 13px 8px;font-size:12px;color:#555;line-height:1.65;border-bottom:1px solid #f5f5f5;">${aiSummary}</div>`:'';
+ // Update goal label based on race goals
+ const goalLabel=goals['race-dist']?`Goal: ${goals['race-dist']} Prep`:(goals['weekly-km']?'Goal: Weekly Volume':'Goal: General Training');
+ const gEl=document.getElementById('wplanGoal');if(gEl)gEl.textContent=goalLabel;
  document.getElementById('wplanBody').innerHTML=aiSection+plan.map((p,i)=>{
  const d=new Date(monDate);d.setDate(monDate.getDate()+i);
  const ds=d.toISOString().slice(0,10);
