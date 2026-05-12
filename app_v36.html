@@ -773,7 +773,7 @@ canvas{width:100%!important;}
  <div style="font-size:9px;font-weight:700;color:#2E86C1;text-transform:uppercase;letter-spacing:.6px;flex:1;">Predicted</div>
  <div style="font-size:9px;font-weight:700;color:#B7860B;text-transform:uppercase;letter-spacing:.6px;width:76px;text-align:right;flex-shrink:0;">vs Goal</div>
  </div>
- <div id="efList"><div style="padding:14px;font-size:12px;color:#bbb;text-align:center;">Tap Analyze to load</div></div>
+ <div id="efList"><div style="padding:14px;font-size:12px;color:#bbb;text-align:center;">Loading...</div></div>
  </div>
 </div>
 
@@ -1266,7 +1266,7 @@ function renderWeeklyPlan(){
  const day=today.getDay(),diff=day===0?-6:1-day;
  const monDate=new Date(today);monDate.setDate(today.getDate()+diff);
 
- const aiSection=(aiSummary&&aiSummary!=='Tap Analyze again.')?`<div style="padding:10px 13px 8px;font-size:12px;color:#555;line-height:1.65;border-bottom:1px solid #f5f5f5;">${aiSummary}</div>`:'';
+ const aiSection=(aiSummary&&aiSummary!=='Refresh to reload.')?`<div style="padding:10px 13px 8px;font-size:12px;color:#555;line-height:1.65;border-bottom:1px solid #f5f5f5;">${aiSummary}</div>`:'';
  document.getElementById('wplanBody').innerHTML=aiSection+plan.map((p,i)=>{
  const d=new Date(monDate);d.setDate(monDate.getDate()+i);
  const ds=d.toISOString().slice(0,10);
@@ -1910,7 +1910,7 @@ function renderVolChart(){
 function renderEfforts(){
  const runs=allActs.filter(a=>a.sport==='Run'&&a.distance>0&&a.duration>0);
  if(!runs.length){
- document.getElementById('efList').innerHTML='<div style="padding:14px;font-size:12px;color:#bbb;text-align:center;">No run data yet — tap Analyze</div>';
+ document.getElementById('efList').innerHTML='<div style="padding:14px;font-size:12px;color:#bbb;text-align:center;">No run data yet</div>';
  return;
  }
 
@@ -2029,7 +2029,7 @@ async function analyze(forceRefresh=false){
  // Check cache first (unless forced refresh)
  if(!forceRefresh){
  const cached=loadCache();
- const aiMissing=cached&&(!cached.data.summary||cached.data.summary==='Tap Analyze again.');
+ const aiMissing=cached&&(!cached.data.summary||cached.data.summary==='Refresh to reload.');
  if(cached&&(Date.now()-cached.ts)<CACHE_TTL_MS&&!aiMissing){
  applyData(cached.data);
  showCacheBar(cached.ts);
@@ -2137,6 +2137,8 @@ function applyData(data){
 
 loadGoals();
 try{loadGoalsFromServer();}catch(e){console.warn('Goals server load failed:',e);}
+// Auto-analyze on page load (uses cache if fresh, otherwise fetches)
+analyze();
 </script>
 </body>
 </html>
