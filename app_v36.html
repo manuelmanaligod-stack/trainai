@@ -1177,7 +1177,7 @@ function renderLatestActivity(){
  document.getElementById('latestBody').innerHTML=`
  <div style="padding:0 13px 12px;">
    <div style="font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:4px;"><span style="margin-right:7px;">${latestIco}</span>${a.name}</div>
-   ${domZone?`<div class="ac-type" style="margin-bottom:8px;">${domZone}</div>`:''}
+   ${domZone?`<div class="ac-type" style="margin-bottom:8px;background:${ZC[domZoneIdx]};color:${domZoneIdx===2?'#1a1a1a':'#fff'};">${domZone}</div>`:''}
    <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:baseline;margin-bottom:10px;">${chips.map(c=>`<div>${c}</div>`).join('')}</div>
    <div style="display:flex;gap:20px;padding-top:10px;border-top:1px solid #f5f5f5;">
      <div><span style="font-size:16px;font-weight:700;color:#344f1f;">${streak}</span><span style="font-size:9px;font-weight:700;color:#344f1f;text-transform:uppercase;letter-spacing:.5px;margin-left:4px;">Day Streak</span>${streak>0?`<div style="font-size:9px;color:#1a1a1a;margin-top:1px;">since ${streakStart}</div>`:''}
@@ -1517,7 +1517,9 @@ function acHtml(a){
  if(paceStr)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val">${paceStr}</div><div class="ac-stat-lbl">Pace /km</div></div>`);
  if(a.avg_hr)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val" style="color:${hrClr}">${Math.round(a.avg_hr)}<span style="font-size:9px;font-weight:400;color:#1a1a1a"> bpm</span></div><div class="ac-stat-lbl">AVG HR</div></div>`);
  const inlineIco=IC[WI[a.sport]||'run']||'';
- const summary=`<div class="ac-top"><div class="ac-info"><div class="ac-name"><span style="margin-right:7px;">${inlineIco}</span>${a.name}${isPR?'<span class="pr-badge" style="margin-left:6px">★ PR</span>':''}</div>${domZone?`<div class="ac-type">${domZone}</div>`:''}<div class="ac-meta">${a.date} · ${Math.round(a.duration)} min</div></div><div class="ac-arr">▾</div></div>${statCells.length?`<div class="ac-stats-row">${statCells.join('')}</div>`:''}`;
+ const zoneBg=domZoneIdx>=0?ZC[domZoneIdx]:'#1a1a1a';
+ const zoneTxt=domZoneIdx===2?'#1a1a1a':'#fff';
+ const summary=`<div class="ac-top"><div class="ac-info"><div class="ac-name"><span style="margin-right:7px;">${inlineIco}</span>${a.name}${isPR?'<span class="pr-badge" style="margin-left:6px">★ PR</span>':''}</div>${domZone?`<div class="ac-type" style="background:${zoneBg};color:${zoneTxt};">${domZone}</div>`:''}<div class="ac-meta">${a.date} · ${Math.round(a.duration)} min</div></div><div class="ac-arr">▾</div></div>${statCells.length?`<div class="ac-stats-row">${statCells.join('')}</div>`:''}`;
  const details=`${a.highlight?`<div class="ac-hl"><div class="hl-s"></div><div class="hl-t">${a.highlight}</div></div>`:''}${a.description?`<div class="ac-desc">${a.description}</div>`:''}${a.comparison?`<div class="ac-cmp">${a.comparison}</div>`:''}${zrows?`<div class="ac-zw">${zrows}<div class="est-note">Estimated from avg HR</div></div>`:''}<a href="https://www.strava.com/activities/${a.id}" target="_blank" rel="noopener" class="ac-strava" onclick="event.stopPropagation();">View on Strava ↗</a>`;
  return `<div class="ac"><div class="ac-summary" onclick="toggleAc(this.parentNode)">${summary}</div><div class="ac-details">${details}</div></div>`;
 }
