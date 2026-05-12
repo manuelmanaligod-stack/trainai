@@ -349,6 +349,17 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-type", "text/html")
             self.end_headers()
             self.wfile.write(read_file("app_v36.html").encode())
+        elif self.path.startswith("/icons/"):
+            file_path = self.path.lstrip("/")
+            if os.path.exists(file_path):
+                self.send_response(200)
+                self.send_header("Content-type", "image/svg+xml")
+                self.end_headers()
+                with open(file_path, "rb") as f:
+                    self.wfile.write(f.read())
+            else:
+                self.send_response(404)
+                self.end_headers()
         elif self.path == "/goals":
             # Load from DB, fall back to file if DB is empty (Render spin-down)
             with get_db() as conn:
