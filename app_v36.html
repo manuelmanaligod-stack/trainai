@@ -398,19 +398,32 @@ canvas{width:100%!important;}
  .be-dist-lbl,.be-time-val{font-size:13px;}
 }
 
+
+/* ═══ MOBILE: hide header, bottom nav ═══ */
+@media(max-width:767px){
+ .hdr{display:none;}
+ .page{padding-bottom:76px;}
+ .cache-bar{bottom:64px;top:auto;}
+}
+.bottom-nav{display:flex;position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e8e8e8;z-index:100;padding:6px 0 max(env(safe-area-inset-bottom),6px);}
+.bnav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:2px 4px;}
+.bnav-item svg{width:22px;height:22px;stroke:#bbb;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;transition:stroke .15s;}
+.bnav-item span{font-size:9px;color:#bbb;font-weight:500;transition:color .15s;white-space:nowrap;}
+.bnav-item.active svg{stroke:#344f1f;}
+.bnav-item.active span{color:#344f1f;}
 /* ═══ DESKTOP (≥768px) ═══ */
 @media(min-width:768px){
  body{background:#eeeee9;}
- .app-shell{display:flex;min-height:100vh;}
- .page{max-width:none;margin:0;padding-bottom:0;flex:1;min-width:0;overflow-y:auto;}
+ .app-shell{display:block;min-height:100vh;}
+ .page{max-width:none;margin:0;padding-bottom:0;width:100%;min-width:0;overflow-y:auto;}
  .hdr{display:none;}
- .desktop-sidebar{
- display:flex;flex-direction:column;
- width:220px;flex-shrink:0;
- background:#fff;border-right:1px solid #e0e0e0;
- position:sticky;top:0;height:100vh;
- padding:28px 0 20px;z-index:30;
- }
+ .desktop-sidebar{display:none;}
+ .hdr{display:flex!important;align-items:center;padding:0 28px;height:58px;gap:0;border-bottom:1px solid #ebebeb;background:#fff;position:sticky;top:0;z-index:20;}
+ .hdr-top{padding-bottom:0;flex-shrink:0;border-right:1px solid #ebebeb;padding-right:28px;margin-right:4px;}
+ .hdr-top #goBtn{display:none;}
+ .main-nav{flex:1;padding-left:4px;}
+ .mnav{font-size:13px;padding:18px 16px;}
+ #goBtnDesktop{margin-left:auto;flex-shrink:0;}
  .sb-logo{display:flex;align-items:flex-start;gap:10px;padding:0 20px 16px;}
  .sb-logo-dot{width:10px;height:10px;border-radius:50%;background:#344f1f;margin-top:5px;flex-shrink:0;}
  .sb-logo-text{}
@@ -778,6 +791,30 @@ canvas{width:100%!important;}
 </div><!-- /main-content -->
 </div><!-- /page -->
 <div id="hrMonthDrop" style="display:none;position:fixed;background:#fff;border:1px solid #ebebeb;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15);z-index:9999;min-width:150px;max-height:240px;overflow-y:auto;padding:4px 0;"></div>
+
+<!-- ═══ MOBILE BOTTOM NAV ═══ -->
+<nav class="bottom-nav">
+ <div class="bnav-item active" onclick="showTab('overview',this)" id="bn-overview">
+  <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="3" y1="20" x2="21" y2="20"/></svg>
+  <span>Overview</span>
+ </div>
+ <div class="bnav-item" onclick="showTab('workouts',this)" id="bn-workouts">
+  <svg viewBox="0 0 24 24"><circle cx="14" cy="4" r="1.5"/><path d="M7 21l4.5-7.5L14 16l2-5 3.5 5.5"/><path d="M8 12.5l3-5 4.5 1.5 1-3"/></svg>
+  <span>Workouts</span>
+ </div>
+ <div class="bnav-item" onclick="showTab('stats',this)" id="bn-stats">
+  <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+  <span>Stats</span>
+ </div>
+ <div class="bnav-item" onclick="showTab('goals',this)" id="bn-goals">
+  <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="#bbb" stroke="none"/></svg>
+  <span>Goals</span>
+ </div>
+ <div class="bnav-item" onclick="showTab('efforts',this)" id="bn-efforts">
+  <svg viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+  <span>Efforts</span>
+ </div>
+</nav>
 </div><!-- /app-shell -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
@@ -961,6 +998,10 @@ function showTab(name,el){
  if(mob)mob.classList.add('active');
  const sb=document.getElementById('sb-'+name);
  if(sb)sb.classList.add('active');
+ // Bottom nav sync
+ document.querySelectorAll('.bnav-item').forEach(t=>t.classList.remove('active'));
+ const bn=document.getElementById('bn-'+name);
+ if(bn)bn.classList.add('active');
  if(name==='stats'&&allActs.length>0){
   requestAnimationFrame(()=>{
    renderStats();
