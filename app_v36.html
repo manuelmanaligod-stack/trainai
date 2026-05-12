@@ -412,17 +412,23 @@ canvas{width:100%!important;}
 .bnav-item.active span{color:#344f1f;}
 /* ═══ DESKTOP (≥768px) ═══ */
 @media(min-width:768px){
- body{background:#eeeee9;}
+ body{background:#fff;}
  .app-shell{display:block;min-height:100vh;}
- .page{max-width:none;margin:0;padding-bottom:0;width:100%;min-width:0;overflow-y:auto;}
- .hdr{display:none;}
+ .page{max-width:1200px;margin:0 auto;padding:0 8px 40px;width:100%;min-width:0;}
  .desktop-sidebar{display:none;}
- .hdr{display:flex!important;align-items:center;padding:0 28px;height:58px;gap:0;border-bottom:1px solid #ebebeb;background:#fff;position:sticky;top:0;z-index:20;}
- .hdr-top{padding-bottom:0;flex-shrink:0;border-right:1px solid #ebebeb;padding-right:28px;margin-right:4px;}
+ .bottom-nav{display:none;}
+ .hdr{display:flex!important;align-items:center;padding:0 24px;height:64px;gap:0;border-bottom:1px solid #ececec;background:#fff;position:sticky;top:0;z-index:20;}
+ .hdr-top{padding-bottom:0;flex-shrink:0;padding-right:32px;}
  .hdr-top #goBtn{display:none;}
- .main-nav{flex:1;padding-left:4px;}
- .mnav{font-size:13px;padding:18px 16px;}
+ .main-nav{flex:1;padding-left:0;gap:2px;}
+ .mnav{font-size:13.5px;padding:21px 18px;font-weight:500;transition:color .15s,border-color .15s;}
+ .mnav:hover:not(.active){color:#555;}
  #goBtnDesktop{margin-left:auto;flex-shrink:0;}
+ /* Cards: subtle shadows instead of hard borders */
+ .card{border:none;box-shadow:0 1px 2px rgba(0,0,0,.04),0 0 0 1px rgba(0,0,0,.05);border-radius:12px;transition:box-shadow .15s ease;}
+ .card:hover{box-shadow:0 4px 12px rgba(0,0,0,.06),0 0 0 1px rgba(0,0,0,.05);}
+ /* Logo bigger on desktop */
+ .logo img{height:36px!important;}
  .sb-logo{display:flex;align-items:flex-start;gap:10px;padding:0 20px 16px;}
  .sb-logo-dot{width:10px;height:10px;border-radius:50%;background:#344f1f;margin-top:5px;flex-shrink:0;}
  .sb-logo-text{}
