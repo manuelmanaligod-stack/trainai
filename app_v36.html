@@ -26,7 +26,6 @@ body{background:#fff;color:#1a1a1a;font-family:'DM Sans',sans-serif;min-height:1
 .ac-summary{cursor:pointer;}
 .ac-arr{font-size:14px;color:#1a1a1a;flex-shrink:0;transition:transform .2s;margin-left:4px;}
 .ac.open .ac-arr{transform:rotate(180deg);color:#666;}
-.ac-sport-ico{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;color:#1a1a1a;flex-shrink:0;}
 .ac-details{display:none;}
 .ac.open .ac-details{display:block;}
 .ac-strava{display:block;padding:10px 13px;border-top:1px solid #f8f8f8;font-size:11px;color:#fc4c02;font-weight:500;text-decoration:none;text-align:center;}
@@ -1515,7 +1514,8 @@ function acHtml(a){
  if(a.distance>0)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val">${a.distance} km</div><div class="ac-stat-lbl">Distance</div></div>`);
  if(paceStr)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val">${paceStr}</div><div class="ac-stat-lbl">Pace /km</div></div>`);
  if(a.avg_hr)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val" style="color:${hrClr}">${Math.round(a.avg_hr)}<span style="font-size:9px;font-weight:400;color:#1a1a1a"> bpm</span></div><div class="ac-stat-lbl">AVG HR</div></div>`);
- const summary=`<div class="ac-top"><div class="ac-sport-ico" style="background:${bg};">${actIcon}</div><div class="ac-info"><div class="ac-name">${a.name}${isPR?'<span class="pr-badge" style="margin-left:6px">★ PR</span>':''}</div>${domZone?`<div class="ac-type">${domZone}</div>`:''}<div class="ac-meta">${a.date} · ${Math.round(a.duration)} min</div></div><div class="ac-arr">▾</div></div>${statCells.length?`<div class="ac-stats-row">${statCells.join('')}</div>`:''}`;
+ const inlineIco=IC[WI[a.sport]||'run']||'';
+ const summary=`<div class="ac-top"><div class="ac-info"><div class="ac-name"><span style="margin-right:7px;">${inlineIco}</span>${a.name}${isPR?'<span class="pr-badge" style="margin-left:6px">★ PR</span>':''}</div>${domZone?`<div class="ac-type">${domZone}</div>`:''}<div class="ac-meta">${a.date} · ${Math.round(a.duration)} min</div></div><div class="ac-arr">▾</div></div>${statCells.length?`<div class="ac-stats-row">${statCells.join('')}</div>`:''}`;
  const details=`${a.highlight?`<div class="ac-hl"><div class="hl-s"></div><div class="hl-t">${a.highlight}</div></div>`:''}${a.description?`<div class="ac-desc">${a.description}</div>`:''}${a.comparison?`<div class="ac-cmp">${a.comparison}</div>`:''}${zrows?`<div class="ac-zw">${zrows}<div class="est-note">Estimated from avg HR</div></div>`:''}<a href="https://www.strava.com/activities/${a.id}" target="_blank" rel="noopener" class="ac-strava" onclick="event.stopPropagation();">View on Strava ↗</a>`;
  return `<div class="ac"><div class="ac-summary" onclick="toggleAc(this.parentNode)">${summary}</div><div class="ac-details">${details}</div></div>`;
 }
