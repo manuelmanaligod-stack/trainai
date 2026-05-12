@@ -403,7 +403,6 @@ canvas{width:100%!important;}
 @media(max-width:767px){
  .hdr{display:none;}
  .page{padding-bottom:76px;}
- .cache-bar{bottom:64px;top:auto;}
 }
 .bottom-nav{display:flex;position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e8e8e8;z-index:100;padding:6px 0 max(env(safe-area-inset-bottom),6px);}
 .bnav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:2px 4px;}
@@ -581,10 +580,6 @@ canvas{width:100%!important;}
 
 <div class="pbar" id="pbar"><div class="pbar-fill"></div></div>
 <div class="pmsg" id="pmsg">Loading...</div>
-<div id="cacheBar" style="display:none" class="cache-bar">
- <div class="cache-left cache-fresh"><div class="cache-dot"></div><span id="cacheMsg">Cached analysis</span></div>
- <span class="cache-clear" onclick="clearCache()">↺ Force refresh</span>
-</div>
 <div class="err-box" id="errBox"></div>
 
 <!-- ═══ OVERVIEW ═══ -->
@@ -632,6 +627,11 @@ canvas{width:100%!important;}
  <div class="ai-body" id="aiBodyOv" style="display:none;"></div>
  <div id="weekProgressCard" style="display:none;"></div>
 
+ <!-- Cache status at bottom of Overview only -->
+ <div id="cacheBar" style="display:none;margin:18px 14px 0;" class="cache-bar">
+  <div class="cache-left cache-fresh"><div class="cache-dot"></div><span id="cacheMsg">Cached analysis</span></div>
+  <span class="cache-clear" onclick="clearCache()">↺ Force refresh</span>
+ </div>
 </div>
 
 <!-- ═══ WORKOUTS ═══ -->
