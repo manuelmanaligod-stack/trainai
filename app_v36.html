@@ -13,6 +13,24 @@
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{background:#f5f5f0;color:#1a1a1a;font-family:'DM Sans',sans-serif;min-height:100vh;}
 
+
+/* ═══ LOADING SKELETON ═══ */
+.skel-bg{background:linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%);background-size:200% 100%;animation:skl 1.4s ease-in-out infinite;border-radius:6px;}
+@keyframes skl{0%{background-position:200% 0;}100%{background-position:-200% 0;}}
+.skel-card{background:#fff;border:1px solid #ebebeb;border-radius:12px;margin:10px 14px 0;padding:14px;}
+.skel-line{height:12px;margin-bottom:9px;}
+.skel-block{height:120px;margin-top:10px;}
+@media(min-width:768px){.skel-card{border:none;box-shadow:0 1px 2px rgba(0,0,0,.04),0 0 0 1px rgba(0,0,0,.05);}}
+
+/* ═══ EXPANDABLE ACTIVITY ROW ═══ */
+.ac-summary{cursor:pointer;}
+.ac-arr{font-size:14px;color:#bbb;flex-shrink:0;transition:transform .2s;margin-left:4px;}
+.ac.open .ac-arr{transform:rotate(180deg);color:#666;}
+.ac-details{display:none;}
+.ac.open .ac-details{display:block;}
+.ac-strava{display:block;padding:10px 13px;border-top:1px solid #f8f8f8;font-size:11px;color:#fc4c02;font-weight:500;text-decoration:none;text-align:center;}
+.ac-strava:hover{background:#fff7f3;}
+
 /* ═══ MOBILE BASE ═══ */
 .page{max-width:430px;margin:0 auto;padding-bottom:100px;}
 .desktop-sidebar{display:none;}
@@ -590,6 +608,19 @@ canvas{width:100%!important;}
 
 <!-- ═══ OVERVIEW ═══ -->
 <div id="tab-overview">
+<div id="loadSkel">
+ <div class="skel-card">
+  <div class="skel-bg skel-line" style="width:30%;"></div>
+  <div class="skel-bg skel-line" style="width:60%;"></div>
+  <div class="skel-bg skel-block"></div>
+ </div>
+ <div class="skel-card">
+  <div class="skel-bg skel-line" style="width:25%;"></div>
+  <div class="skel-bg skel-line" style="width:80%;"></div>
+  <div class="skel-bg skel-line" style="width:50%;"></div>
+ </div>
+</div>
+
  <!-- Race Countdown (crimson, no card class) -->
  <div id="raceCard" style="display:none;margin:10px 14px 0;border-radius:14px;overflow:hidden;background:#344f1f;"></div>
 
@@ -1464,6 +1495,11 @@ function pgChange(dir){
  document.getElementById('mb-'+openMonth).scrollIntoView({behavior:'smooth',block:'start'});
 }
 
+
+function toggleAc(el){
+ el.classList.toggle('open');
+}
+
 function acHtml(a){
  const actIcon=icon(WI[a.sport]||'run',16),bg=WBg[a.sport]||'#f9f9f9';
  const zone=getZone(a.avg_hr),hrClr=a.avg_hr?ZC[zone]:'#ccc';
@@ -1479,7 +1515,9 @@ function acHtml(a){
  if(a.distance>0)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val">${a.distance} km</div><div class="ac-stat-lbl">Distance</div></div>`);
  if(paceStr)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val">${paceStr}</div><div class="ac-stat-lbl">Pace /km</div></div>`);
  if(a.avg_hr)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val" style="color:${hrClr}">${Math.round(a.avg_hr)}<span style="font-size:9px;font-weight:400;color:#bbb"> bpm</span></div><div class="ac-stat-lbl">AVG HR</div></div>`);
- return `<div class="ac"><div class="ac-top"><div class="ac-info"><div class="ac-name">${a.name}${isPR?'<span class="pr-badge" style="margin-left:6px">★ PR</span>':''}</div>${domZone?`<div class="ac-type">${domZone}</div>`:''}<div class="ac-meta">${a.date} · ${Math.round(a.duration)} min</div></div></div> ${statCells.length?`<div class="ac-stats-row">${statCells.join('')}</div>`:''} ${a.highlight?`<div class="ac-hl"><div class="hl-s"></div><div class="hl-t">${a.highlight}</div></div>`:''} ${a.description?`<div class="ac-desc">${a.description}</div>`:''} ${a.comparison?`<div class="ac-cmp">${a.comparison}</div>`:''} ${zrows?`<div class="ac-zw">${zrows}<div class="est-note">Estimated from avg HR</div></div>`:''}</div>`;
+ const summary=`<div class="ac-top"><div class="ac-info"><div class="ac-name">${a.name}${isPR?'<span class="pr-badge" style="margin-left:6px">★ PR</span>':''}</div>${domZone?`<div class="ac-type">${domZone}</div>`:''}<div class="ac-meta">${a.date} · ${Math.round(a.duration)} min</div></div><div class="ac-arr">▾</div></div>${statCells.length?`<div class="ac-stats-row">${statCells.join('')}</div>`:''}`;
+ const details=`${a.highlight?`<div class="ac-hl"><div class="hl-s"></div><div class="hl-t">${a.highlight}</div></div>`:''}${a.description?`<div class="ac-desc">${a.description}</div>`:''}${a.comparison?`<div class="ac-cmp">${a.comparison}</div>`:''}${zrows?`<div class="ac-zw">${zrows}<div class="est-note">Estimated from avg HR</div></div>`:''}<a href="https://www.strava.com/activities/${a.id}" target="_blank" rel="noopener" class="ac-strava" onclick="event.stopPropagation();">View on Strava ↗</a>`;
+ return `<div class="ac"><div class="ac-summary" onclick="toggleAc(this.parentNode)">${summary}</div><div class="ac-details">${details}</div></div>`;
 }
 
 let progChart=null;
@@ -2138,25 +2176,26 @@ async function analyze(forceRefresh=false){
 
 function applyDesktopLayout(){
  if(window.innerWidth<768)return;
- // Overview: wrap cards into 2-col grid
  const ov=document.getElementById('tab-overview');
- // Race + Progress side by side
+ // Race + Progress chart side by side
  const rc=document.getElementById('raceCard');
  const op=document.getElementById('ovProgressCard');
  if(rc&&op&&rc.parentNode===ov){
  const g=document.createElement('div');g.className='dsk-grid-2';
  ov.insertBefore(g,rc);g.appendChild(rc);g.appendChild(op);
  }
- // WeekProgress + Plan side by side
+ // Latest Activity + Week Progress side by side
+ const lc=document.getElementById('latestCard');
  const wp2=document.getElementById('weekProgressCard');
- const wp=document.getElementById('wplanCard');
- if(wp2&&wp&&wp2.parentNode===ov){
+ if(lc&&wp2&&lc.parentNode===ov){
  const g=document.createElement('div');g.className='dsk-grid-2';
- ov.insertBefore(g,wp2);g.appendChild(wp2);g.appendChild(wp);
+ ov.insertBefore(g,lc);g.appendChild(lc);g.appendChild(wp2);
  }
+ // wplan stays full-width below
 }
 
 function applyData(data){
+ const sk=document.getElementById('loadSkel');if(sk)sk.style.display='none';
  // goals are never reloaded here — only changed by saveGoals()
  allActs=data.activities;
  prIds=new Set();
