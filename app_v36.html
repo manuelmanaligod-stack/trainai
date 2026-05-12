@@ -864,12 +864,12 @@ canvas{width:100%!important;}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
 const ZC=['#5AC8FA','#34C759','#FFD60A','#FF9F0A','#FF375F'];
-const ZN=['Recovery','Aerobic','Tempo','Threshold','Max'];
+const ZN=['Zone 1','Zone 2','Zone 3','Zone 4','Zone 5'];
 const ZR=['<124','124–154','154–169','169–184','184+'];
 const ZB=[0,124,154,169,184,999];
 // Pace zones based on ~5:15/km threshold (Z4). Seconds per km.
 const PZC=['#5AC8FA','#34C759','#FFD60A','#FF9F0A','#FF375F'];
-const PZN=['Easy','Aerobic','Tempo','Threshold','Race/VO2'];
+const PZN=['Zone 1','Zone 2','Zone 3','Zone 4','Zone 5'];
 // [slow_limit, fast_limit] in sec/km. Z1>390, Z2 355-390, Z3 315-355, Z4 295-315, Z5<295
 const PZB=[999,390,355,315,295,0]; // descending: slower = lower zone
 // ── INLINE SVG ICONS (Lucide paths) ─────────────────────────────────
@@ -1399,7 +1399,7 @@ function renderHrZones(tab){
  const paceHdr=`<div class="zrow" style="padding-bottom:5px;margin-bottom:4px;border-bottom:1px solid #f5f5f5;"><div class="zr-dot" style="background:transparent"></div><div class="zr-name"></div><div class="zr-range" style="font-size:9px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:.5px;">min/km</div><div style="flex:1;"></div><div class="zr-time" style="font-size:9px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:.5px;">Time</div><div class="zr-pct" style="font-size:9px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:.5px;">%</div></div>`;
  document.getElementById('hrZones').innerHTML=paceHdr+
  totals.map((t,i)=>{const pct=Math.round(t/grand*100);
- return `<div class="zrow"><div class="zr-dot" style="background:${PZC[i]}"></div><div class="zr-name">Z${i+1} ${PZN[i]}</div><div class="zr-range">${PZR[i]}</div><div class="zr-track"><div class="zr-fill" style="width:${pct}%;background:${PZC[i]}"></div></div><div class="zr-time">${fmtT2(t)}</div><div class="zr-pct">${pct}%</div></div>`;
+ return `<div class="zrow"><div class="zr-dot" style="background:${PZC[i]}"></div><div class="zr-name">${PZN[i]}</div><div class="zr-range">${PZR[i]}</div><div class="zr-track"><div class="zr-fill" style="width:${pct}%;background:${PZC[i]}"></div></div><div class="zr-time">${fmtT2(t)}</div><div class="zr-pct">${pct}%</div></div>`;
  }).join('');
  } else {
  const totals=[0,0,0,0,0];
@@ -1408,7 +1408,7 @@ function renderHrZones(tab){
  const hrHdr=`<div class="zrow" style="padding-bottom:5px;margin-bottom:4px;border-bottom:1px solid #f5f5f5;"><div class="zr-dot" style="background:transparent"></div><div class="zr-name"></div><div class="zr-range" style="font-size:9px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:.5px;">BPM</div><div style="flex:1;"></div><div class="zr-time" style="font-size:9px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:.5px;">Time</div><div class="zr-pct" style="font-size:9px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:.5px;">%</div></div>`;
  document.getElementById('hrZones').innerHTML=hrHdr+
  totals.map((t,i)=>{const pct=Math.round(t/grand*100);
- return `<div class="zrow"><div class="zr-dot" style="background:${ZC[i]}"></div><div class="zr-name">Z${i+1} ${ZN[i]}</div><div class="zr-range">${ZR[i]}</div><div class="zr-track"><div class="zr-fill" style="width:${pct}%;background:${ZC[i]}"></div></div><div class="zr-time">${fmtT2(t)}</div><div class="zr-pct">${pct}%</div></div>`;
+ return `<div class="zrow"><div class="zr-dot" style="background:${ZC[i]}"></div><div class="zr-name">${ZN[i]}</div><div class="zr-range">${ZR[i]}</div><div class="zr-track"><div class="zr-fill" style="width:${pct}%;background:${ZC[i]}"></div></div><div class="zr-time">${fmtT2(t)}</div><div class="zr-pct">${pct}%</div></div>`;
  }).join('');
  }
 }
@@ -1521,7 +1521,7 @@ function acHtml(a){
  const zt=estimateZones(a.avg_hr,a.duration,a.sport);
  const tot=zt?zt.reduce((s,t)=>s+t,0):0,maxT=zt?Math.max(...zt,1):1;
  const bars=zt&&tot>0?zt.map((t,i)=>{const p=t/tot*100;return p>0.5?`<div class="ac-zseg" style="flex:${p};background:${ZC[i]}"></div>`:''}).join(''):'';
- const zrows=zt&&tot>0?zt.map((t,i)=>{if(t<30)return '';const p=Math.round(t/tot*100);return `<div class="azr"><div class="azr-dot" style="background:${ZC[i]}"></div><div class="azr-name">Z${i+1} ${ZN[i]}</div><div class="azr-range">${ZR[i]} bpm</div><div class="azr-track"><div class="azr-fill" style="width:${p}%;background:${ZC[i]}"></div></div><div class="azr-time">${fmtT2(t)}</div><div class="azr-pct">${p}%</div></div>`;}).filter(Boolean).join(''):'';
+ const zrows=zt&&tot>0?zt.map((t,i)=>{if(t<30)return '';const p=Math.round(t/tot*100);return `<div class="azr"><div class="azr-dot" style="background:${ZC[i]}"></div><div class="azr-name">${ZN[i]}</div><div class="azr-range">${ZR[i]} bpm</div><div class="azr-track"><div class="azr-fill" style="width:${p}%;background:${ZC[i]}"></div></div><div class="azr-time">${fmtT2(t)}</div><div class="azr-pct">${p}%</div></div>`;}).filter(Boolean).join(''):'';
  const isPR=prIds.has(a.id);
  const domZoneIdx=zt&&tot>0?zt.indexOf(Math.max(...zt)):-1;
  const domZone=domZoneIdx>=0&&a.avg_hr?ZN[domZoneIdx]:'';
