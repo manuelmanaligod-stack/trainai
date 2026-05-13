@@ -407,7 +407,9 @@ canvas{width:100%!important;}
 .totals-section-hdr{padding:8px 13px 4px;font-size:10px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:.8px;border-top:1px solid #f5f5f5;background:#fff;}
 
 /* ── Full History Chart ── */
-.hist-controls{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;}
+.hist-controls{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-bottom:10px;padding-bottom:2px;-webkit-overflow-scrolling:touch;}
+.hist-controls::-webkit-scrollbar,#ovProgressFilter::-webkit-scrollbar{display:none;}
+.hist-btn{flex-shrink:0;}
 .hist-btn{padding:4px 11px;border-radius:10px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid #e8e8e8;color:#1a1a1a;background:#fff;transition:all .15s;}
 .hist-btn.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a;}
 .hist-summary{font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:10px;}
@@ -645,7 +647,7 @@ canvas{width:100%!important;}
     <div class="card-badge" id="ovProgressBadge">—</div>
   </div>
   <div style="padding:8px 13px 0;">
-    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;" id="ovProgressFilter">
+    <div style="display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-bottom:10px;padding-bottom:2px;-webkit-overflow-scrolling:touch;" id="ovProgressFilter">
       <div class="hist-btn active" onclick="setOvSport('Run',this)"><i class="fa-solid fa-person-running" style="margin-right:5px;"></i>Run</div>
       <div class="hist-btn" onclick="setOvSport('Walk',this)"><i class="fa-solid fa-person-walking" style="margin-right:5px;"></i>Walk</div>
       <div class="hist-btn" onclick="setOvSport('Ride',this)"><i class="fa-solid fa-person-biking" style="margin-right:5px;"></i>Ride</div>
