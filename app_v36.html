@@ -16,8 +16,8 @@ body{background:#fff;color:#1a1a1a;font-family:'DM Sans',sans-serif;min-height:1
 
 
 /* ═══ MOBILE SPLASH SCREEN ═══ */
-.splash{position:fixed;inset:0;background:#344f1f;z-index:9999;display:flex;align-items:center;justify-content:center;transition:opacity .5s ease;}
-.splash img{width:60%;max-width:280px;filter:brightness(0) invert(1);}
+.splash{position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;height:100dvh;background:#344f1f;z-index:9999;display:grid;place-items:center;transition:opacity .5s ease;}
+.splash img{width:60%;max-width:300px;filter:brightness(0) invert(1);display:block;}
 .splash.fade-out{opacity:0;pointer-events:none;}
 @media(min-width:768px){.splash{display:none;}}
 
