@@ -728,7 +728,7 @@ canvas{width:100%!important;}
  <div class="fchip" onclick="setWRunZone(2,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#E5A39B;margin-right:5px;"></span>Z2 Aerobic</div>
  <div class="fchip" onclick="setWRunZone(3,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#C56F65;margin-right:5px;"></span>Z3 Tempo</div>
  <div class="fchip" onclick="setWRunZone(4,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#DA2929;margin-right:5px;"></span>Z4 Threshold</div>
- <div class="fchip" onclick="setWRunZone(5,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#8B1A1A;margin-right:5px;"></span>Z5 Max</div>
+ <div class="fchip" onclick="setWRunZone(5,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#A30000;margin-right:5px;"></span>Z5 Max</div>
  </div>
  <div id="monthBlocks"></div>
  <div class="pgrow" id="pgRow" style="display:none">
@@ -888,12 +888,12 @@ canvas{width:100%!important;}
 </div><!-- /app-shell -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
-const ZC=['#F1D1CE','#E5A39B','#C56F65','#DA2929','#8B1A1A'];
+const ZC=['#F1D1CE','#E5A39B','#C56F65','#DA2929','#A30000'];
 const ZN=['Z1 Recovery','Z2 Aerobic','Z3 Tempo','Z4 Threshold','Z5 Max'];
 const ZR=['<124','124–154','154–169','169–184','184+'];
 const ZB=[0,124,154,169,184,999];
 // Pace zones based on ~5:15/km threshold (Z4). Seconds per km.
-const PZC=['#F1D1CE','#E5A39B','#C56F65','#DA2929','#8B1A1A'];
+const PZC=['#F1D1CE','#E5A39B','#C56F65','#DA2929','#A30000'];
 const PZN=['Zone 1','Zone 2','Zone 3','Zone 4','Zone 5'];
 // [slow_limit, fast_limit] in sec/km. Z1>390, Z2 355-390, Z3 315-355, Z4 295-315, Z5<295
 const PZB=[999,390,355,315,295,0]; // descending: slower = lower zone
