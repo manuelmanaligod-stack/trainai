@@ -1204,17 +1204,37 @@ function renderLatestActivity(){
  const domZoneIdx=zt&&tot>0?zt.indexOf(Math.max(...zt)):-1;
  const domZone=domZoneIdx>=0&&a.avg_hr?ZN[domZoneIdx]:'';
  const latestIco=IC[WI[a.sport]||'run']||'';
+ const dateFmt=fmtWorkoutDate(a.date,a.start_time);
+ // Build HR zone rows like the workout details
+ const maxT=zt?Math.max(...zt,1):1;
+ const zrows=zt&&tot>0?zt.map((t,i)=>{if(t<30)return '';const p=Math.round(t/tot*100);return `<div class="azr"><div class="azr-dot" style="background:${ZC[i]}"></div><div class="azr-name">${ZN[i]}</div><div class="azr-range">${ZR[i]} bpm</div><div class="azr-track"><div class="azr-fill" style="width:${p}%;background:${ZC[i]}"></div></div><div class="azr-time">${fmtT2(t)}</div><div class="azr-pct">${p}%</div></div>`;}).filter(Boolean).join(''):'';
+ const exactZones=Array.isArray(a.hr_zones)&&a.hr_zones.some(t=>t>0);
+ const zNote=exactZones?'<i class="fa-solid fa-circle-check" style="color:#34C759;margin-right:4px;"></i>Exact zones from Strava':'<i class="fa-solid fa-circle-info" style="color:#999;margin-right:4px;"></i>Estimated from avg HR';
+ const wkMonStr=getMon(),wkSunStr=getSun();
+ const wk=allActs.filter(x=>x.date>=wkMonStr&&x.date<=wkSunStr);
+ const wkMins=Math.round(wk.reduce((s,x)=>s+x.duration,0));
  document.getElementById('latestBody').innerHTML=`
- <div style="padding:0 13px 12px;">
-   <div style="font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:4px;"><span style="margin-right:7px;">${latestIco}</span>${a.name}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:baseline;margin-bottom:10px;">${chips.map(c=>`<div>${c}</div>`).join('')}</div>
-   <div style="display:flex;gap:20px;padding-top:10px;border-top:1px solid #f5f5f5;">
-     <div><i class="fa-solid fa-fire" style="color:#344f1f;margin-right:5px;"></i><span style="font-size:16px;font-weight:700;color:#1a1a1a;">${streak}</span><span style="font-size:9px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:.5px;margin-left:4px;">Day Streak</span>${streak>0?`<div style="font-size:9px;color:#666;margin-top:1px;">since ${streakStart}</div>`:''}
-     </div>
-     <div><i class="fa-solid fa-fire" style="color:#344f1f;margin-right:5px;"></i><span style="font-size:16px;font-weight:700;color:#1a1a1a;">${weekSet.size}</span><span style="font-size:9px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:.5px;margin-left:4px;">Active Weeks</span><div style="font-size:9px;color:#666;margin-top:1px;">since ${firstActivity}</div>
-     </div>
+ <div class="ac"><div class="ac-summary" onclick="toggleAc(this.parentNode)">
+  <div style="padding:0 13px 6px;">
+   <div style="display:flex;align-items:flex-start;gap:8px;">
+    <div style="flex:1;min-width:0;">
+     <div style="font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:2px;"><span style="margin-right:7px;">${latestIco}</span>${a.name}</div>
+     <div class="ac-meta" style="margin-bottom:8px;">${dateFmt}</div>
+    </div>
+    <div class="ac-arr">▾</div>
    </div>
-   <div style="font-size:11px;color:#1a1a1a;margin-top:8px;">${(()=>{const mon=getMon(),sun=getSun();const wk=allActs.filter(x=>x.date>=mon&&x.date<=sun);const wkMins=Math.round(wk.reduce((s,x)=>s+x.duration,0));return `${wkMins} min active · ${wk.length} workouts this week`;})()}</div>
+   <div style="display:flex;flex-wrap:wrap;gap:18px;align-items:baseline;padding-top:4px;">${chips.map(c=>`<div>${c}</div>`).join('')}</div>
+  </div>
+ </div>
+ <div class="ac-details" style="padding:0 13px;">
+  <div style="display:flex;gap:20px;padding-top:10px;border-top:1px solid #f5f5f5;margin-top:10px;">
+   <div><i class="fa-solid fa-fire" style="color:#344f1f;margin-right:5px;"></i><span style="font-size:16px;font-weight:700;color:#1a1a1a;">${streak}</span><span style="font-size:9px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:.5px;margin-left:4px;">Day Streak</span>${streak>0?`<div style="font-size:9px;color:#666;margin-top:1px;">since ${streakStart}</div>`:''}</div>
+   <div><i class="fa-solid fa-fire" style="color:#344f1f;margin-right:5px;"></i><span style="font-size:16px;font-weight:700;color:#1a1a1a;">${weekSet.size}</span><span style="font-size:9px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:.5px;margin-left:4px;">Active Weeks</span><div style="font-size:9px;color:#666;margin-top:1px;">since ${firstActivity}</div></div>
+  </div>
+  <div style="font-size:11px;color:#1a1a1a;margin-top:8px;padding-bottom:10px;">${wkMins} min active · ${wk.length} workouts this week</div>
+  ${zrows?`<div class="ac-zw" style="padding:8px 0 10px;border-top:1px solid #f5f5f5;">${zrows}<div class="est-note">${zNote}</div></div>`:''}
+  <a href="https://www.strava.com/activities/${a.id}" target="_blank" rel="noopener" class="ac-strava" onclick="event.stopPropagation();" style="margin:0 -13px;">View on Strava ↗</a>
+ </div>
  </div>`;
  document.getElementById('latestCard').style.display='block';
 }
