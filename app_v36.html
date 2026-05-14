@@ -149,8 +149,8 @@ body{background:#fff;color:#1a1a1a;font-family:'DM Sans',sans-serif;min-height:1
 .azr-pct{font-size:10px;color:#666;width:22px;text-align:right;flex-shrink:0;}
 .est-note{font-size:9px;color:#666;padding-top:3px;}
 .ac-sum{padding:7px 13px 10px;border-top:1px solid #f8f8f8;font-size:11px;color:#777;line-height:1.6;}
-.ac-stats-row{display:flex;gap:6px;padding:8px 10px 10px;}
-.ac-stat-cell{flex:1;padding:8px 8px;text-align:center;background:#f5f5f0;border-radius:10px;}
+.ac-stats-row{display:flex;gap:14px;padding:8px 4px 10px;}
+.ac-stat-cell{flex:1;padding:4px 2px;text-align:center;background:transparent;border-radius:0;min-width:0;}
 .ac-stat-cell:last-child{border-right:none;}
 .ac-stat-val{font-size:14px;font-weight:700;color:#1a1a1a;line-height:1;}
 .ac-stat-lbl{font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.3px;margin-top:2px;}
@@ -1193,10 +1193,12 @@ function renderLatestActivity(){
  document.getElementById('latestBadge').textContent=a.date;
  // Compact layout: name + stat cells (value above label) + streak row
  const chips=[];
+ // Order: Distance, Time, Pace, AVG HR, Elevation
  if(a.distance>0)chips.push(`<div style="display:flex;flex-direction:column;align-items:flex-start;"><span style="font-size:14px;font-weight:700;color:#1a1a1a;">${distStr}</span><span style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.3px;margin-top:1px;">Distance</span></div>`);
- if(paceStr)chips.push(`<div style="display:flex;flex-direction:column;align-items:flex-start;"><span style="font-size:14px;font-weight:700;color:#1a1a1a;">${paceStr}</span><span style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.3px;margin-top:1px;">Pace /km</span></div>`);
  chips.push(`<div style="display:flex;flex-direction:column;align-items:flex-start;"><span style="font-size:14px;font-weight:700;color:#1a1a1a;">${timeStr}</span><span style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.3px;margin-top:1px;">Time</span></div>`);
+ if(paceStr)chips.push(`<div style="display:flex;flex-direction:column;align-items:flex-start;"><span style="font-size:14px;font-weight:700;color:#1a1a1a;">${paceStr}</span><span style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.3px;margin-top:1px;">Pace /km</span></div>`);
  if(a.avg_hr)chips.push(`<div style="display:flex;flex-direction:column;align-items:flex-start;"><span style="font-size:14px;font-weight:700;color:#1a1a1a;">${Math.round(a.avg_hr)}<span style="font-size:9px;font-weight:400;color:#1a1a1a"> bpm</span></span><span style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.3px;margin-top:1px;">AVG HR</span></div>`);
+ if(a.elev>0)chips.push(`<div style="display:flex;flex-direction:column;align-items:flex-start;"><span style="font-size:14px;font-weight:700;color:#1a1a1a;">${Math.round(a.elev)}<span style="font-size:9px;font-weight:400;color:#1a1a1a"> m</span></span><span style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.3px;margin-top:1px;">Elev Gain</span></div>`);
  const zt=getActivityZones(a);
  const tot=zt?zt.reduce((s,t)=>s+t,0):0;
  const domZoneIdx=zt&&tot>0?zt.indexOf(Math.max(...zt)):-1;
@@ -1552,7 +1554,7 @@ function acHtml(a){
  const domZoneIdx=zt&&tot>0?zt.indexOf(Math.max(...zt)):-1;
  const domZone=domZoneIdx>=0&&a.avg_hr?ZN[domZoneIdx]:'';
  const statCells=[];
- // Order: Distance, Time, Pace, AVG HR
+ // Order: Distance, Time, Pace, AVG HR, Elevation
  if(a.distance>0)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val">${a.distance} km</div><div class="ac-stat-lbl">Distance</div></div>`);
  // Time — always present, includes seconds (e.g. "1h 5m 30s")
  const totalSec=Math.round(a.duration*60);
@@ -1563,6 +1565,7 @@ function acHtml(a){
  statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val">${durStr}</div><div class="ac-stat-lbl">Time</div></div>`);
  if(paceStr)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val">${paceStr}</div><div class="ac-stat-lbl">Pace /km</div></div>`);
  if(a.avg_hr)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val" style="color:#1a1a1a">${Math.round(a.avg_hr)}<span style="font-size:9px;font-weight:400;color:#1a1a1a"> bpm</span></div><div class="ac-stat-lbl">AVG HR</div></div>`);
+ if(a.elev>0)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val">${Math.round(a.elev)}<span style="font-size:9px;font-weight:400;color:#1a1a1a"> m</span></div><div class="ac-stat-lbl">Elev Gain</div></div>`);
  const inlineIco=IC[WI[a.sport]||'run']||'';
  const zoneBg=domZoneIdx>=0?ZC[domZoneIdx]:'#1a1a1a';
  const zoneTxt=domZoneIdx===2?'#1a1a1a':'#fff';
