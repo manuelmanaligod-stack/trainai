@@ -443,8 +443,8 @@ canvas{width:100%!important;}
 .bnav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:2px 4px;}
 .bnav-item i{font-size:20px;color:#1a1a1a;transition:color .15s;}
 .bnav-item span{font-size:9px;color:#1a1a1a;font-weight:500;transition:color .15s;white-space:nowrap;}
-.bnav-item.active i{color:#D4A800;}
-.bnav-item.active span{color:#D4A800;}
+.bnav-item.active i{color:#D97048;}
+.bnav-item.active span{color:#D97048;}
 /* ═══ DESKTOP (≥768px) ═══ */
 @media(min-width:768px){
  body{background:#fff;}
@@ -847,7 +847,7 @@ canvas{width:100%!important;}
  <!-- Column headers -->
  <div style="display:flex;padding:6px 13px 4px;border-bottom:1px solid #f0ede8;">
  <div style="font-size:9px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:.6px;width:90px;flex-shrink:0;">Distance</div>
- <div style="font-size:9px;font-weight:700;color:#141414;text-transform:uppercase;letter-spacing:.6px;flex:1;"><i class="fa-solid fa-medal" style="color:#D4A800;margin-right:5px;"></i>Best Effort</div>
+ <div style="font-size:9px;font-weight:700;color:#141414;text-transform:uppercase;letter-spacing:.6px;flex:1;"><i class="fa-solid fa-medal" style="color:#D97048;margin-right:5px;"></i>Best Effort</div>
  <div style="font-size:9px;font-weight:700;color:#2E86C1;text-transform:uppercase;letter-spacing:.6px;flex:1;">Predicted</div>
  <div style="font-size:9px;font-weight:700;color:#B7860B;text-transform:uppercase;letter-spacing:.6px;width:76px;text-align:right;flex-shrink:0;">vs Goal</div>
  </div>
@@ -1251,8 +1251,8 @@ function renderLatestActivity(){
  document.getElementById('streakBody').innerHTML=`
  <div style="padding:0 13px 14px;">
   <div style="display:flex;gap:20px;">
-   <div><i class="fa-solid fa-fire" style="color:#D4A800;margin-right:5px;"></i><span style="font-size:18px;font-weight:700;color:#1a1a1a;">${streak}</span><span style="font-size:9px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:.5px;margin-left:4px;">Day Streak</span>${streak>0?`<div style="font-size:10px;color:#666;margin-top:2px;">since ${streakStart}</div>`:''}</div>
-   <div><i class="fa-solid fa-fire" style="color:#D4A800;margin-right:5px;"></i><span style="font-size:18px;font-weight:700;color:#1a1a1a;">${weekSet.size}</span><span style="font-size:9px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:.5px;margin-left:4px;">Active Weeks</span><div style="font-size:10px;color:#666;margin-top:2px;">since ${firstActivity}</div></div>
+   <div><i class="fa-solid fa-fire" style="color:#D97048;margin-right:5px;"></i><span style="font-size:18px;font-weight:700;color:#1a1a1a;">${streak}</span><span style="font-size:9px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:.5px;margin-left:4px;">Day Streak</span>${streak>0?`<div style="font-size:10px;color:#666;margin-top:2px;">since ${streakStart}</div>`:''}</div>
+   <div><i class="fa-solid fa-fire" style="color:#D97048;margin-right:5px;"></i><span style="font-size:18px;font-weight:700;color:#1a1a1a;">${weekSet.size}</span><span style="font-size:9px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:.5px;margin-left:4px;">Active Weeks</span><div style="font-size:10px;color:#666;margin-top:2px;">since ${firstActivity}</div></div>
   </div>
   <div style="font-size:11px;color:#1a1a1a;margin-top:8px;">${wkMins} min active · ${wk.length} workouts this week</div>
  </div>`;
@@ -1950,7 +1950,7 @@ function renderOvProgress(){
     const goalLbl=unit==='h'?`${goal}h`:unit==='m'?`${goal} m`:`${goal} km`;
     // Gold gradient — fill reveals more of the dark gold as pct grows
     const fill=met?'linear-gradient(90deg,#FFD60A 0%,#9A7E00 100%)':'linear-gradient(90deg,#FFE680 0%,#D4A800 100%)';
-    const barClr=met?'#000000':'#141414';
+    const barClr=met?'#9A4A28':'#D97048';
     return `<div style="margin-top:8px;height:10px;width:100%;background:#e8e8e8;border-radius:5px;overflow:hidden;"><div style="height:100%;width:${Math.round(pct*100)}%;background:${barClr};border-radius:5px;transition:width .4s;"></div></div>`;
   };
 
@@ -2009,7 +2009,7 @@ function renderOvProgress(){
   const summaryEl=document.getElementById('ovProgressSummary');
   if(summaryEl)summaryEl.style.display='none';
   if(ovProgressChart)ovProgressChart.destroy();
-  const clr='#141414';
+  const clr='#D97048';
   // Vertical line plugin for current week
   const vertLinePlugin={id:'vertLine',afterDatasetsDraw(chart){
     const idx=chart.data.labels.length-1;
