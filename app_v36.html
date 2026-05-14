@@ -1868,12 +1868,14 @@ function renderOvProgress(){
 
   // This week bounds
   const monStr=getMon(),sunStr=getSun();
-  const weekFiltered=allActs.filter(a=>a.date>=monStr&&a.date<=sunStr&&a.sport===ovSport);
+  // Match Run + VirtualRun (treadmill) when sport is Run
+  const sportMatches=a=>ovSport==='Run'?(a.sport==='Run'||a.sport==='VirtualRun'):a.sport===ovSport;
+  const weekFiltered=allActs.filter(a=>a.date>=monStr&&a.date<=sunStr&&sportMatches(a));
   const weekDist=weekFiltered.reduce((s,a)=>s+a.distance,0);
   const weekMins=weekFiltered.reduce((s,a)=>s+a.duration,0);
   const weekElev=weekFiltered.reduce((s,a)=>s+(a.elev||0),0);
   const wH=Math.floor(weekMins/60),wM=Math.round(weekMins%60);
-  const weekTimeStr=`${wH}:${String(wM).padStart(2,'0')}`;
+  const weekTimeStr=wM>0?`${wH}h:${wM}m`:`${wH}h`;
 
   // Goal progress bar helper
   const goalBar=(val,goal,unit)=>{
@@ -1897,8 +1899,12 @@ function renderOvProgress(){
       const display=goalVal?`${val}<span style="color:#666;font-weight:600;"> / ${goalVal}${unit?' '+unit:''}</span>`:val;
       return `<div style="flex:1;background:#f8f8f6;border-radius:10px;padding:8px 10px;"><div style="font-size:15px;font-weight:700;color:#1a1a1a;">${display}</div><div style="font-size:9px;color:#1a1a1a;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;">${lbl}</div>${barHtml||''}</div>`;
     };
-    // Format goal hours as "H:00" to match the actual time format
-    const goalTimeStr=wGoalTimeH?`${Math.floor(wGoalTimeH)}:${String(Math.round((wGoalTimeH%1)*60)).padStart(2,'0')}`:null;
+    // Format goal hours to match "Hh:Mm" or "Hh" style
+    let goalTimeStr=null;
+    if(wGoalTimeH){
+     const gH=Math.floor(wGoalTimeH),gM=Math.round((wGoalTimeH%1)*60);
+     goalTimeStr=gM>0?`${gH}h:${gM}m`:`${gH}h`;
+    }
     let cells='';
     if(!isStrength)cells+=sc(weekDist.toFixed(1)+' km','Distance',wGoalKm?goalBar(weekDist,wGoalKm,'km'):'',wGoalKm?wGoalKm:null,'km');
     cells+=sc(weekTimeStr,'Time',wGoalTimeH?goalBar(weekMins/60,wGoalTimeH,'h'):'',goalTimeStr,'');
