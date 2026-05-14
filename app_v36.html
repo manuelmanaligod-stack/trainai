@@ -1438,11 +1438,11 @@ function renderWeeklyPlan(){
  const d=new Date(monDate);d.setDate(monDate.getDate()+i);
  const ds=d.toISOString().slice(0,10);
  const isToday=ds===today.toISOString().slice(0,10);
- const rowBg=isToday?'background:#D4A800;':'';
- const dayClr=isToday?'color:#1a1a1a;font-weight:700;':'color:#1a1a1a;';
- const titleClr=isToday?'color:#1a1a1a;':'color:#141414;';
- const descClr=isToday?'color:rgba(0,0,0,.75);':'color:#1a1a1a;';
- const todayBadge=isToday?` <span style="font-size:9px;background:rgba(0,0,0,.15);color:#1a1a1a;padding:1px 6px;border-radius:6px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;">Today</span>`:'';
+ const rowBg=isToday?'background:#141414;':'';
+ const dayClr=isToday?'color:#fff;font-weight:700;':'color:#1a1a1a;';
+ const titleClr=isToday?'color:#fff;':'color:#141414;';
+ const descClr=isToday?'color:rgba(255,255,255,.8);':'color:#1a1a1a;';
+ const todayBadge=isToday?` <span style="font-size:9px;background:rgba(255,255,255,.18);color:#fff;padding:1px 6px;border-radius:6px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;">Today</span>`:'';
  return `<div style="display:flex;gap:14px;padding:10px 18px;border-bottom:1px solid #f5f5f5;${rowBg}">
  <div style="font-size:11px;font-weight:600;width:28px;flex-shrink:0;padding-top:2px;${dayClr}">${DAYS[i]}</div>
  <div style="flex:1;">
