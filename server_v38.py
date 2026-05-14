@@ -42,6 +42,7 @@ def init_db():
             highlight   TEXT DEFAULT '',
             description TEXT DEFAULT '',
             comparison  TEXT DEFAULT '',
+            hr_zones    TEXT DEFAULT NULL,
             synced_at   TEXT
         );
         CREATE TABLE IF NOT EXISTS ai_cache (
@@ -69,6 +70,12 @@ def init_db():
             newest_date TEXT
         );
         """)
+        # Migration: add hr_zones column to existing DB (no-op if already present)
+        try:
+            conn.execute("ALTER TABLE activities ADD COLUMN hr_zones TEXT DEFAULT NULL")
+            print("[DB] Added hr_zones column.")
+        except sqlite3.OperationalError:
+            pass  # column already exists
     print("[DB] Initialized.")
 
 # ── STRAVA ────────────────────────────────────────────────────────────
@@ -85,6 +92,32 @@ def classify_zone(avg_hr):
     for i, (lo, hi) in enumerate([(0,124),(124,154),(154,169),(169,184),(184,999)]):
         if lo <= avg_hr < hi: return i + 1
     return 5
+
+def fetch_activity_zones(token, strava_id):
+    """Fetch Strava's exact HR zone distribution for one activity.
+    Returns a JSON string of [s_z1, s_z2, s_z3, s_z4, s_z5] in seconds,
+    or None if unavailable / no HR data."""
+    try:
+        r = requests.get(
+            f"https://www.strava.com/api/v3/activities/{strava_id}/zones",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=8
+        )
+        if r.status_code != 200:
+            return None
+        for block in r.json():
+            if block.get("type") == "heartrate":
+                buckets = block.get("distribution_buckets", [])
+                times = [b.get("time", 0) for b in buckets[:5]]
+                # Pad to 5 zones if Strava returned fewer
+                while len(times) < 5:
+                    times.append(0)
+                if sum(times) > 0:
+                    return json.dumps(times)
+        return None
+    except Exception as e:
+        print(f"[Zones] Failed for {strava_id}: {e}")
+        return None
 
 def fetch_new_activities(token, after_date=None):
     """Fetch only activities newer than after_date. If None, fetch all 2025+."""
@@ -133,11 +166,13 @@ def sync_activities_to_db(token, force=False):
     with get_db() as conn:
         for a in acts:
             avg_hr = a.get("average_heartrate")
+            # Fetch exact HR zones from Strava (only if activity has HR data)
+            hr_zones_json = fetch_activity_zones(token, a["id"]) if avg_hr else None
             try:
                 conn.execute("""
                     INSERT OR REPLACE INTO activities
-                    (strava_id,date,name,sport,distance,duration,avg_hr,max_hr,zone,calories,elev,synced_at)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                    (strava_id,date,name,sport,distance,duration,avg_hr,max_hr,zone,calories,elev,hr_zones,synced_at)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (
                     a["id"],
                     a.get("start_date_local","")[:10],
@@ -150,6 +185,7 @@ def sync_activities_to_db(token, force=False):
                     classify_zone(avg_hr),
                     a.get("calories",0),
                     a.get("total_elevation_gain",0),
+                    hr_zones_json,
                     datetime.now().isoformat()
                 ))
                 saved += 1
@@ -383,6 +419,43 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(404); self.end_headers()
 
     def do_POST(self):
+        if self.path == "/backfill_zones":
+            # Backfill exact HR zones for existing activities that don't have them.
+            # Limits to N per call to stay under Strava rate limits.
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(length) if length else b'{}'
+                try: payload = json.loads(body)
+                except: payload = {}
+                limit = int(payload.get("limit", 30))
+
+                token = get_access_token()
+                with get_db() as conn:
+                    rows = conn.execute(
+                        "SELECT strava_id FROM activities WHERE hr_zones IS NULL AND avg_hr IS NOT NULL ORDER BY date DESC LIMIT ?",
+                        (limit,)
+                    ).fetchall()
+                done, skipped = 0, 0
+                for r in rows:
+                    sid = r["strava_id"]
+                    z = fetch_activity_zones(token, sid)
+                    if z:
+                        with get_db() as conn:
+                            conn.execute("UPDATE activities SET hr_zones=? WHERE strava_id=?", (z, sid))
+                        done += 1
+                    else:
+                        skipped += 1
+                print(f"[Backfill] Updated {done} activities, skipped {skipped}")
+                self.send_response(200)
+                self.send_header("Content-type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"ok": True, "done": done, "skipped": skipped, "remaining_check": len(rows)}).encode())
+            except Exception as e:
+                import traceback; traceback.print_exc()
+                self.send_response(500); self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
+            return
+
         if self.path == "/goals":
             try:
                 length = int(self.headers.get("Content-Length", 0))
@@ -460,6 +533,7 @@ class Handler(BaseHTTPRequestHandler):
                         "comparison":  a.get("comparison",""),
                         "calories":    a["calories"],
                         "elev":        a["elev"],
+                        "hr_zones":    json.loads(a["hr_zones"]) if a.get("hr_zones") else None,
                     })
 
                 try:    best_efforts = get_best_efforts_from_db(token)
