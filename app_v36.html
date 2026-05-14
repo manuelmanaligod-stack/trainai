@@ -762,6 +762,14 @@ canvas{width:100%!important;}
  <div class="pz-tab" onclick="setZoneMode('pace',this)">Pace</div>
  </div>
  </div>
+ <!-- HR-only sport filter -->
+ <div id="hrSportFilter" style="display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding:0 13px 8px;-webkit-overflow-scrolling:touch;">
+ <div class="hist-btn active" onclick="setHrSport('Run',this)"><i class="fa-solid fa-person-running" style="margin-right:5px;"></i>Run</div>
+ <div class="hist-btn" onclick="setHrSport('Ride',this)"><i class="fa-solid fa-person-biking" style="margin-right:5px;"></i>Ride</div>
+ <div class="hist-btn" onclick="setHrSport('WeightTraining',this)"><i class="fa-solid fa-dumbbell" style="margin-right:5px;"></i>Str</div>
+ <div class="hist-btn" onclick="setHrSport('Walk',this)"><i class="fa-solid fa-person-walking" style="margin-right:5px;"></i>Walk</div>
+ <div class="hist-btn" onclick="setHrSport('all',this)"><i class="fa-solid fa-layer-group" style="margin-right:5px;"></i>All</div>
+ </div>
  <div class="stabs" id="hrTabs" style="padding:0 13px 8px;gap:6px;flex-wrap:wrap;align-items:center;">
  <div class="stab active" onclick="setHrTab('thisweek',this)">This Week</div>
  <div class="stab" onclick="setHrTab('2026',this)">2026</div>
@@ -915,6 +923,7 @@ const PAGE_SIZE=10;
 const CACHE_KEY='trainai_cache_v1';
 const CACHE_TTL_MS=15*60*1000;
 let zoneMode='hr'; // 'hr' or 'pace'
+let hrSport='Run'; // sport filter for HR zones (Run/Ride/WeightTraining/Walk/all)
 
 let allActs=[], allBE=[], aiSummary='', aiAnalysis='', aiNext={};
 let prIds=new Set();
@@ -1143,6 +1152,8 @@ function setZoneMode(mode,el){
  zoneMode=mode;
  document.querySelectorAll('.pz-tab').forEach(t=>t.classList.remove('active'));
  el.classList.add('active');
+ const sf=document.getElementById('hrSportFilter');
+ if(sf)sf.style.display=mode==='hr'?'flex':'none';
  renderHrZones(hrTab);
 }
 
@@ -1434,6 +1445,12 @@ function setHrTab(tab,el){
  renderHrZones(tab);
 }
 
+function setHrSport(s,el){
+ hrSport=s;
+ document.querySelectorAll('#hrSportFilter .hist-btn').forEach(c=>c.classList.remove('active'));
+ el.classList.add('active');
+ renderHrZones(hrTab);
+}
 function renderHrZones(tab){
  let acts,badge;
  if(tab==='thisweek'){acts=allActs.filter(a=>a.date>=getMon()&&a.date<=getSun());badge='This Week';}
@@ -1454,9 +1471,11 @@ function renderHrZones(tab){
  return `<div class="zrow"><div class="zr-dot" style="background:${PZC[i]}"></div><div class="zr-name">${PZN[i]}</div><div class="zr-range">${PZR[i]}</div><div class="zr-track"><div class="zr-fill" style="width:${pct}%;background:${PZC[i]}"></div></div><div class="zr-time">${fmtT2(t)}</div><div class="zr-pct">${pct}%</div></div>`;
  }).join('');
  } else {
+ // Apply sport filter for HR zones
+ const hrActs=hrSport==='all'?acts:acts.filter(a=>a.sport===hrSport);
  const totals=[0,0,0,0,0];
  let exactCount=0,estCount=0;
- acts.forEach(a=>{
+ hrActs.forEach(a=>{
   const e=getActivityZones(a);
   if(e){
    e.forEach((t,i)=>totals[i]+=t);
