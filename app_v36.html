@@ -1883,7 +1883,7 @@ function renderOvProgress(){
     const goalLbl=unit==='h'?`${goal}h`:unit==='m'?`${goal} m`:`${goal} km`;
     // Gold gradient — fill reveals more of the dark gold as pct grows
     const fill=met?'linear-gradient(90deg,#FFD60A 0%,#9A7E00 100%)':'linear-gradient(90deg,#FFE680 0%,#D4A800 100%)';
-    return `<div style="margin-top:6px;"><div style="font-size:9px;color:#1a1a1a;margin-bottom:3px;">Goal: ${goalLbl}</div><div style="height:10px;width:100px;max-width:100%;background:#f3eed8;border-radius:5px;overflow:hidden;"><div style="height:100%;width:${Math.round(pct*100)}%;background:${fill};border-radius:5px;transition:width .4s;"></div></div></div>`;
+    return `<div style="margin-top:6px;"><div style="font-size:11px;font-weight:500;color:#1a1a1a;margin-bottom:4px;">Goal: ${goalLbl}</div><div style="height:10px;width:70px;max-width:100%;background:#f3eed8;border-radius:5px;overflow:hidden;"><div style="height:100%;width:${Math.round(pct*100)}%;background:${fill};border-radius:5px;transition:width .4s;"></div></div></div>`;
   };
 
   // Week stats row — read per-sport goals from localStorage
