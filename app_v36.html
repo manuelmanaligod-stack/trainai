@@ -1883,15 +1883,8 @@ function renderOvProgress(){
     const goalLbl=unit==='h'?`${goal}h`:unit==='m'?`${goal} m`:`${goal} km`;
     // Gold gradient — fill reveals more of the dark gold as pct grows
     const fill=met?'linear-gradient(90deg,#FFD60A 0%,#9A7E00 100%)':'linear-gradient(90deg,#FFE680 0%,#D4A800 100%)';
-    // Ring gauge: SVG with track + arc whose dashoffset reflects pct
-    const r=18, c=2*Math.PI*r;
-    const ringClr=met?'#9A7E00':'#D4A800';
-    const offset=(c*(1-pct)).toFixed(2);
-    const ring=`<svg width="44" height="44" viewBox="0 0 44 44" style="display:block;">
-      <circle cx="22" cy="22" r="${r}" fill="none" stroke="#f3eed8" stroke-width="5"/>
-      <circle cx="22" cy="22" r="${r}" fill="none" stroke="${ringClr}" stroke-width="5" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${offset}" stroke-linecap="round" transform="rotate(-90 22 22)" style="transition:stroke-dashoffset .4s;"/>
-    </svg>`;
-    return `<div style="margin-top:8px;display:flex;align-items:center;">${ring}</div>`;
+    const barClr=met?'#9A7E00':'#D4A800';
+    return `<div style="margin-top:8px;height:10px;width:100%;background:#f3eed8;border-radius:5px;overflow:hidden;"><div style="height:100%;width:${Math.round(pct*100)}%;background:${barClr};border-radius:5px;transition:width .4s;"></div></div>`;
   };
 
   // Week stats row — read per-sport goals from localStorage
