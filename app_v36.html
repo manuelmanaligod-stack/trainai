@@ -1033,6 +1033,17 @@ function getActivityZones(a){
  if(a&&Array.isArray(a.hr_zones)&&a.hr_zones.some(t=>t>0))return a.hr_zones;
  return estimateZones(a.avg_hr,a.duration,a.sport);
 }
+// "May 12, 2026 at 3:45 PM" (or just "May 12, 2026" if start_time missing)
+function fmtWorkoutDate(dateStr, startTime){
+ if(!dateStr)return '';
+ const t=startTime||'12:00';
+ const d=new Date(`${dateStr}T${t}:00`);
+ if(isNaN(d))return dateStr;
+ const datePart=d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+ if(!startTime)return datePart;
+ const timePart=d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+ return `${datePart} at ${timePart}`;
+}
 function mdHtml(t){return t.replace(/^#{1,3} (.+)/gm,'<span class="h2">$1</span>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/^[\-\*] /gm,'• ').replace(/\n/g,'<br>');}
 
 // ── NAVIGATION ────────────────────────────────────────────────────────
@@ -1543,11 +1554,15 @@ function acHtml(a){
  const statCells=[];
  if(a.distance>0)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val">${a.distance} km</div><div class="ac-stat-lbl">Distance</div></div>`);
  if(paceStr)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val">${paceStr}</div><div class="ac-stat-lbl">Pace /km</div></div>`);
+ // Time card — always present
+ const durH=Math.floor(a.duration/60),durM=Math.round(a.duration%60);
+ const durStr=durH>0?`${durH}h ${durM}m`:`${durM}m`;
+ statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val">${durStr}</div><div class="ac-stat-lbl">Time</div></div>`);
  if(a.avg_hr)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val" style="color:#1a1a1a">${Math.round(a.avg_hr)}<span style="font-size:9px;font-weight:400;color:#1a1a1a"> bpm</span></div><div class="ac-stat-lbl">AVG HR</div></div>`);
  const inlineIco=IC[WI[a.sport]||'run']||'';
  const zoneBg=domZoneIdx>=0?ZC[domZoneIdx]:'#1a1a1a';
  const zoneTxt=domZoneIdx===2?'#1a1a1a':'#fff';
- const summary=`<div class="ac-top"><div class="ac-info"><div class="ac-name"><span style="margin-right:7px;">${inlineIco}</span>${a.name}${isPR?'<i class="fa-solid fa-medal" style="color:#D4A800;margin-left:8px;font-size:.95em;"></i><span style="color:#D4A800;font-weight:700;font-size:.85em;margin-left:4px;letter-spacing:.4px;">PR</span>':''}</div><div class="ac-meta">${a.date} · ${Math.round(a.duration)} min</div></div><div class="ac-arr">▾</div></div>${statCells.length?`<div class="ac-stats-row">${statCells.join('')}</div>`:''}`;
+ const summary=`<div class="ac-top"><div class="ac-info"><div class="ac-name"><span style="margin-right:7px;">${inlineIco}</span>${a.name}${isPR?'<i class="fa-solid fa-medal" style="color:#D4A800;margin-left:8px;font-size:.95em;"></i><span style="color:#D4A800;font-weight:700;font-size:.85em;margin-left:4px;letter-spacing:.4px;">PR</span>':''}</div><div class="ac-meta">${fmtWorkoutDate(a.date,a.start_time)}</div></div><div class="ac-arr">▾</div></div>${statCells.length?`<div class="ac-stats-row">${statCells.join('')}</div>`:''}`;
  const zoneSrcExact=Array.isArray(a.hr_zones)&&a.hr_zones.some(t=>t>0);
  const zoneNote=zoneSrcExact?'<i class="fa-solid fa-circle-check" style="color:#34C759;margin-right:4px;"></i>Exact zones from Strava':'<i class="fa-solid fa-circle-info" style="color:#999;margin-right:4px;"></i>Estimated from avg HR';
  const details=`${a.highlight?`<div class="ac-hl"><div class="hl-s"></div><div class="hl-t">${a.highlight}</div></div>`:''}${a.description?`<div class="ac-desc">${a.description}</div>`:''}${a.comparison?`<div class="ac-cmp">${a.comparison}</div>`:''}${zrows?`<div class="ac-zw">${zrows}<div class="est-note">${zoneNote}</div></div>`:''}<a href="https://www.strava.com/activities/${a.id}" target="_blank" rel="noopener" class="ac-strava" onclick="event.stopPropagation();">View on Strava ↗</a>`;

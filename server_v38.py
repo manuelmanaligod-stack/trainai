@@ -43,6 +43,7 @@ def init_db():
             description TEXT DEFAULT '',
             comparison  TEXT DEFAULT '',
             hr_zones    TEXT DEFAULT NULL,
+            start_time  TEXT DEFAULT NULL,
             synced_at   TEXT
         );
         CREATE TABLE IF NOT EXISTS ai_cache (
@@ -74,6 +75,11 @@ def init_db():
         try:
             conn.execute("ALTER TABLE activities ADD COLUMN hr_zones TEXT DEFAULT NULL")
             print("[DB] Added hr_zones column.")
+        except sqlite3.OperationalError:
+            pass  # column already exists
+        try:
+            conn.execute("ALTER TABLE activities ADD COLUMN start_time TEXT DEFAULT NULL")
+            print("[DB] Added start_time column.")
         except sqlite3.OperationalError:
             pass  # column already exists
     print("[DB] Initialized.")
@@ -214,13 +220,14 @@ def sync_activities_to_db(token, force=False):
             if avg_hr:
                 hr_zones_json, _status = fetch_activity_zones(token, a["id"])
             try:
+                sdl = a.get("start_date_local","")
                 conn.execute("""
                     INSERT OR REPLACE INTO activities
-                    (strava_id,date,name,sport,distance,duration,avg_hr,max_hr,zone,calories,elev,hr_zones,synced_at)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    (strava_id,date,name,sport,distance,duration,avg_hr,max_hr,zone,calories,elev,hr_zones,start_time,synced_at)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (
                     a["id"],
-                    a.get("start_date_local","")[:10],
+                    sdl[:10],
                     a.get("name","Unknown"),
                     a.get("sport_type","Unknown"),
                     round(a.get("distance",0)/1000, 2),
@@ -231,6 +238,7 @@ def sync_activities_to_db(token, force=False):
                     a.get("calories",0),
                     a.get("total_elevation_gain",0),
                     hr_zones_json,
+                    sdl[11:16] if len(sdl) >= 16 else None,  # "HH:MM"
                     datetime.now().isoformat()
                 ))
                 saved += 1
@@ -488,6 +496,57 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(404); self.end_headers()
 
     def do_POST(self):
+        if self.path == "/backfill_times":
+            # Re-fetch /athlete/activities and update start_time for existing rows.
+            # Strava's list endpoint is cheap (one page covers ~30 activities).
+            try:
+                token = get_access_token()
+                updated = 0
+                pages_done = 0
+                for page in range(1, 30):
+                    r = requests.get(
+                        "https://www.strava.com/api/v3/athlete/activities",
+                        headers={"Authorization": f"Bearer {token}"},
+                        params={"per_page": 30, "page": page},
+                        timeout=10
+                    )
+                    if r.status_code != 200:
+                        print(f"[BackfillTimes] page {page} status {r.status_code}, stopping")
+                        break
+                    batch = r.json()
+                    if not batch:
+                        break
+                    pages_done += 1
+                    with get_db() as conn:
+                        for a in batch:
+                            sdl = a.get("start_date_local", "")
+                            t = sdl[11:16] if len(sdl) >= 16 else None
+                            if t:
+                                cur = conn.execute(
+                                    "UPDATE activities SET start_time=? WHERE strava_id=? AND (start_time IS NULL OR start_time='')",
+                                    (t, a["id"])
+                                )
+                                if cur.rowcount > 0:
+                                    updated += 1
+                    oldest = batch[-1].get("start_date","9999")
+                    if oldest < "2025-01-01T00:00:00Z":
+                        break
+                    time.sleep(0.1)
+                with get_db() as conn:
+                    missing = conn.execute(
+                        "SELECT COUNT(*) AS n FROM activities WHERE start_time IS NULL"
+                    ).fetchone()["n"]
+                print(f"[BackfillTimes] Updated {updated} rows across {pages_done} pages. {missing} still missing.")
+                self.send_response(200)
+                self.send_header("Content-type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"ok": True, "updated": updated, "pages_fetched": pages_done, "still_missing": missing}).encode())
+            except Exception as e:
+                import traceback; traceback.print_exc()
+                self.send_response(500); self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
+            return
+
         if self.path == "/backfill_zones":
             # Backfill exact HR zones for existing activities that don't have them.
             # Stops early on Strava rate limit (429). Reports per-status counts.
@@ -660,6 +719,7 @@ class Handler(BaseHTTPRequestHandler):
                         "calories":    a["calories"],
                         "elev":        a["elev"],
                         "hr_zones":    json.loads(a["hr_zones"]) if a.get("hr_zones") else None,
+                        "start_time":  a.get("start_time"),
                     })
 
                 try:    best_efforts = get_best_efforts_from_db(token)
