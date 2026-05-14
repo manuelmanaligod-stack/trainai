@@ -250,21 +250,26 @@ def sync_activities_to_db(token, force=False):
     with get_db() as conn:
         for a in acts:
             avg_hr = a.get("average_heartrate")
+            sdl = a.get("start_date_local","")
+            sport = a.get("sport_type","Unknown")
             # Fetch exact HR zones from Strava (only if activity has HR data)
             hr_zones_json = None
             if avg_hr:
                 hr_zones_json, _status = fetch_activity_zones(token, a["id"])
+            # Fetch splits for May 2026 runs
+            splits_json = None
+            if sdl.startswith("2026-05") and sport in ("Run", "VirtualRun"):
+                splits_json, _s = fetch_activity_splits(token, a["id"])
             try:
-                sdl = a.get("start_date_local","")
                 conn.execute("""
                     INSERT OR REPLACE INTO activities
-                    (strava_id,date,name,sport,distance,duration,avg_hr,max_hr,zone,calories,elev,hr_zones,start_time,synced_at)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    (strava_id,date,name,sport,distance,duration,avg_hr,max_hr,zone,calories,elev,hr_zones,start_time,synced_at,splits)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (
                     a["id"],
                     sdl[:10],
                     a.get("name","Unknown"),
-                    a.get("sport_type","Unknown"),
+                    sport,
                     round(a.get("distance",0)/1000, 2),
                     round(a.get("moving_time",0)/60, 1),
                     avg_hr,
@@ -274,7 +279,8 @@ def sync_activities_to_db(token, force=False):
                     a.get("total_elevation_gain",0),
                     hr_zones_json,
                     sdl[11:16] if len(sdl) >= 16 else None,  # "HH:MM"
-                    datetime.now().isoformat()
+                    datetime.now().isoformat(),
+                    splits_json,
                 ))
                 saved += 1
             except: pass
