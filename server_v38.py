@@ -932,9 +932,32 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body_out)
 
+def boot_sync_if_empty():
+    """If the DB is brand-new/empty (e.g. after a Render deploy wiped it),
+    kick off an initial sync in a background thread so the first user request
+    doesn't have to wait. Quietly skips if Strava is rate-limited."""
+    try:
+        with get_db() as conn:
+            n = conn.execute("SELECT COUNT(*) FROM activities").fetchone()[0]
+        if n > 0:
+            return  # DB already populated
+        import threading
+        def _sync():
+            try:
+                token = get_access_token()
+                added = sync_activities_to_db(token, force=True)
+                print(f"[Boot] Auto-synced {added} activities to fresh DB")
+            except Exception as e:
+                print(f"[Boot] Auto-sync deferred (will retry on first request): {e}")
+        threading.Thread(target=_sync, daemon=True).start()
+        print("[Boot] DB empty — kicked off background sync from Strava")
+    except Exception as e:
+        print(f"[Boot] Skipping auto-sync: {e}")
+
 if __name__ == "__main__":
     import socket
     init_db()
+    boot_sync_if_empty()
     try:    local_ip = socket.gethostbyname(socket.gethostname())
     except: local_ip = "localhost"
     port = int(os.environ.get("PORT", 8080))
