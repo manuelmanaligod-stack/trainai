@@ -1552,12 +1552,16 @@ function acHtml(a){
  const domZoneIdx=zt&&tot>0?zt.indexOf(Math.max(...zt)):-1;
  const domZone=domZoneIdx>=0&&a.avg_hr?ZN[domZoneIdx]:'';
  const statCells=[];
+ // Order: Distance, Time, Pace, AVG HR
  if(a.distance>0)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val">${a.distance} km</div><div class="ac-stat-lbl">Distance</div></div>`);
- if(paceStr)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val">${paceStr}</div><div class="ac-stat-lbl">Pace /km</div></div>`);
- // Time card — always present
- const durH=Math.floor(a.duration/60),durM=Math.round(a.duration%60);
- const durStr=durH>0?`${durH}h ${durM}m`:`${durM}m`;
+ // Time — always present, includes seconds (e.g. "1h 5m 30s")
+ const totalSec=Math.round(a.duration*60);
+ const dH=Math.floor(totalSec/3600);
+ const dM=Math.floor((totalSec%3600)/60);
+ const dS=totalSec%60;
+ const durStr=dH>0?`${dH}h ${dM}m ${dS}s`:(dM>0?`${dM}m ${dS}s`:`${dS}s`);
  statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val">${durStr}</div><div class="ac-stat-lbl">Time</div></div>`);
+ if(paceStr)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val">${paceStr}</div><div class="ac-stat-lbl">Pace /km</div></div>`);
  if(a.avg_hr)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val" style="color:#1a1a1a">${Math.round(a.avg_hr)}<span style="font-size:9px;font-weight:400;color:#1a1a1a"> bpm</span></div><div class="ac-stat-lbl">AVG HR</div></div>`);
  const inlineIco=IC[WI[a.sport]||'run']||'';
  const zoneBg=domZoneIdx>=0?ZC[domZoneIdx]:'#1a1a1a';
