@@ -1891,7 +1891,7 @@ function renderOvProgress(){
       <circle cx="22" cy="22" r="${r}" fill="none" stroke="#f3eed8" stroke-width="5"/>
       <circle cx="22" cy="22" r="${r}" fill="none" stroke="${ringClr}" stroke-width="5" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${offset}" stroke-linecap="round" transform="rotate(-90 22 22)" style="transition:stroke-dashoffset .4s;"/>
     </svg>`;
-    return `<div style="margin-top:8px;display:flex;align-items:center;gap:10px;"><div style="font-size:11px;font-weight:500;color:#1a1a1a;">Goal: ${goalLbl}</div>${ring}</div>`;
+    return `<div style="margin-top:8px;display:flex;align-items:center;">${ring}</div>`;
   };
 
   // Week stats row — read per-sport goals from localStorage
@@ -1900,11 +1900,14 @@ function renderOvProgress(){
   const wGoalTimeH=parseFloat(localStorage.getItem(_wKey(ovSport,'time')))||0;
   const wGoalElev=parseFloat(localStorage.getItem(_wKey(ovSport,'elev')))||0;
   if(statsEl){
-    const sc=(val,lbl,barHtml)=>`<div style="flex:1;background:#f8f8f6;border-radius:10px;padding:8px 10px;"><div style="font-size:15px;font-weight:700;color:#1a1a1a;">${val}</div><div style="font-size:9px;color:#1a1a1a;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;">${lbl}</div>${barHtml||''}</div>`;
+    const sc=(val,lbl,barHtml,goalVal,unit)=>{
+      const display=goalVal?`${val}<span style="font-size:11px;font-weight:500;color:#666;"> / ${goalVal}${unit?' '+unit:''}</span>`:val;
+      return `<div style="flex:1;background:#f8f8f6;border-radius:10px;padding:8px 10px;"><div style="font-size:15px;font-weight:700;color:#1a1a1a;">${display}</div><div style="font-size:9px;color:#1a1a1a;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;">${lbl}</div>${barHtml||''}</div>`;
+    };
     let cells='';
-    if(!isStrength)cells+=sc(weekDist.toFixed(1)+' km','Distance',wGoalKm?goalBar(weekDist,wGoalKm,'km'):'');
-    cells+=sc(weekTimeStr,'Time',wGoalTimeH?goalBar(weekMins/60,wGoalTimeH,'h'):'');
-    if(!isStrength&&!isSwim)cells+=sc(Math.round(weekElev)+' m','Elev Gain',wGoalElev?goalBar(weekElev,wGoalElev,'m'):'');
+    if(!isStrength)cells+=sc(weekDist.toFixed(1)+' km','Distance',wGoalKm?goalBar(weekDist,wGoalKm,'km'):'',wGoalKm?wGoalKm:null,'km');
+    cells+=sc(weekTimeStr,'Time',wGoalTimeH?goalBar(weekMins/60,wGoalTimeH,'h'):'',wGoalTimeH?wGoalTimeH+'h':null,'');
+    if(!isStrength&&!isSwim)cells+=sc(Math.round(weekElev)+' m','Elev Gain',wGoalElev?goalBar(weekElev,wGoalElev,'m'):'',wGoalElev?wGoalElev:null,'m');
     statsEl.innerHTML=cells;
     statsEl.style.display='flex';
   }
