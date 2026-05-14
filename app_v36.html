@@ -1883,8 +1883,8 @@ function renderOvProgress(){
     const goalLbl=unit==='h'?`${goal}h`:unit==='m'?`${goal} m`:`${goal} km`;
     // Gold gradient — fill reveals more of the dark gold as pct grows
     const fill=met?'linear-gradient(90deg,#FFD60A 0%,#9A7E00 100%)':'linear-gradient(90deg,#FFE680 0%,#D4A800 100%)';
-    const barClr=met?'#9A7E00':'#D4A800';
-    return `<div style="margin-top:8px;height:10px;width:100%;background:#f3eed8;border-radius:5px;overflow:hidden;"><div style="height:100%;width:${Math.round(pct*100)}%;background:${barClr};border-radius:5px;transition:width .4s;"></div></div>`;
+    const barClr=met?'#1d3010':'#344f1f';
+    return `<div style="margin-top:8px;height:10px;width:100%;background:#e8ede4;border-radius:5px;overflow:hidden;"><div style="height:100%;width:${Math.round(pct*100)}%;background:${barClr};border-radius:5px;transition:width .4s;"></div></div>`;
   };
 
   // Week stats row — read per-sport goals from localStorage
@@ -1937,7 +1937,7 @@ function renderOvProgress(){
   const summaryEl=document.getElementById('ovProgressSummary');
   if(summaryEl)summaryEl.style.display='none';
   if(ovProgressChart)ovProgressChart.destroy();
-  const clr='#344f1f';
+  const clr='#D4A800';
   // Vertical line plugin for current week
   const vertLinePlugin={id:'vertLine',afterDatasetsDraw(chart){
     const idx=chart.data.labels.length-1;
