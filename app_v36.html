@@ -1191,7 +1191,7 @@ function renderLatestActivity(){
  }
  const weekSet=new Set(allActs.map(x=>{const ddd=new Date(x.date+'T12:00:00'),dy=ddd.getDay(),dff=dy===0?-6:1-dy;const m=new Date(ddd);m.setDate(ddd.getDate()+dff);return m.toISOString().slice(0,10);}));
  const firstActivity=sortedAllDates.length?new Date(sortedAllDates[sortedAllDates.length-1]+'T12:00:00').toLocaleDateString('en-US',{month:'short',year:'numeric'}):'';
- document.getElementById('latestBadge').textContent=a.date;
+ const latestBadgeEl=document.getElementById('latestBadge');if(latestBadgeEl)latestBadgeEl.textContent=a.date;
  // Compact layout: name + stat cells (value above label) + streak row
  const chips=[];
  // Order: Distance, Time, Pace, AVG HR, Elevation
