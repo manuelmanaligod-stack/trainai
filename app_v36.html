@@ -1680,7 +1680,7 @@ function acHtml(a){
  const zoneBg=domZoneIdx>=0?ZC[domZoneIdx]:'#1a1a1a';
  const zoneTxt=domZoneIdx===2?'#1a1a1a':'#fff';
  const summary=`<div class="ac-top"><div class="ac-info"><div class="ac-name"><span style="margin-right:7px;">${inlineIco}</span>${a.name}${isPR?'<i class="fa-solid fa-medal" style="color:#D4A800;margin-left:8px;font-size:.95em;"></i><span style="color:#D4A800;font-weight:700;font-size:.85em;margin-left:4px;letter-spacing:.4px;">PR</span>':''}</div><div class="ac-meta">${fmtWorkoutDate(a.date,a.start_time)}</div></div><div class="ac-arr">▾</div></div>${statCells.length?`<div class="ac-stats-row">${statCells.join('')}</div>`:''}`;
- const details=`${a.highlight?`<div class="ac-hl"><div class="hl-s"></div><div class="hl-t">${a.highlight}</div></div>`:''}${a.description?`<div class="ac-desc">${a.description}</div>`:''}${a.comparison?`<div class="ac-cmp">${a.comparison}</div>`:''}${zrows?`<div class="ac-zw">${zrows}</div>`:''}${splitsHtml}<a href="https://www.strava.com/activities/${a.id}" target="_blank" rel="noopener" class="ac-strava" onclick="event.stopPropagation();">View on Strava ↗</a>`;
+ const details=`${a.highlight?`<div class="ac-hl"><div class="hl-s"></div><div class="hl-t">${a.highlight}</div></div>`:''}${a.description?`<div class="ac-desc">${a.description}</div>`:''}${a.comparison?`<div class="ac-cmp">${a.comparison}</div>`:''}${splitsHtml}${zrows?`<div class="ac-zw">${zrows}</div>`:''}<a href="https://www.strava.com/activities/${a.id}" target="_blank" rel="noopener" class="ac-strava" onclick="event.stopPropagation();">View on Strava ↗</a>`;
  return `<div class="ac"><div class="ac-summary" onclick="toggleAc(this.parentNode)">${summary}</div><div class="ac-details">${details}</div></div>`;
 }
 
