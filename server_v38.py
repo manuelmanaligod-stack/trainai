@@ -307,7 +307,9 @@ def get_best_efforts_from_db(token):
             rows = conn.execute("SELECT * FROM best_efforts").fetchall()
             return [dict(r) for r in rows]
 
-    # First time — fetch from Strava
+    # First time — fetch from Strava (skip if no token in fast-path mode)
+    if not token:
+        return []
     try:
         all_efforts = {}
         r = requests.get("https://www.strava.com/api/v3/athlete/activities",
@@ -742,10 +744,23 @@ class Handler(BaseHTTPRequestHandler):
                 goals         = payload.get("goals", {})
                 force_refresh = payload.get("force_refresh", False)
 
-                token = get_access_token()
+                # Fast path: if DB was synced within the last 5 minutes and the
+                # caller isn't forcing a refresh, skip Strava OAuth + delta probe
+                # entirely. Saves ~1-2s on warm requests.
+                SKIP_SYNC_WINDOW = 5 * 60  # seconds
+                with get_db() as conn:
+                    log = conn.execute("SELECT last_sync FROM sync_log WHERE id=1").fetchone()
+                last_sync_age = (time.time() - float(log["last_sync"])) if log and log["last_sync"] else 1e9
 
-                # Smart sync: check for new activities
-                new_count = sync_activities_to_db(token, force=force_refresh)
+                if not force_refresh and last_sync_age < SKIP_SYNC_WINDOW:
+                    print(f"[Analyze] Fast path — DB synced {int(last_sync_age)}s ago, skipping Strava")
+                    token = None
+                    new_count = 0
+                else:
+                    token = get_access_token()
+                    # Smart sync: check for new activities
+                    new_count = sync_activities_to_db(token, force=force_refresh)
+
                 all_acts  = get_activities_from_db()
                 recent10  = all_acts[:10]
 
