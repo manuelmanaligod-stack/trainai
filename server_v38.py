@@ -366,7 +366,7 @@ def save_ai_cache(summary, analysis, next_workout):
 
 def ai_cache_age():
     cache = get_ai_cache()
-    if not cache: return float("inf")
+    if not cache: return 99 * 24 * 3600  # treat as "very old" (99 days) — finite so int() works
     return time.time() - cache["created_at"]
 
 # ── GROQ AI ───────────────────────────────────────────────────────────
