@@ -640,6 +640,12 @@ canvas{width:100%!important;}
  <div id="latestBody"></div>
  </div>
 
+ <!-- Streak / Activity Summary -->
+ <div class="card" id="streakCard" style="display:none;margin-top:10px;">
+ <div class="card-hdr"><div class="card-title">Activity Summary</div></div>
+ <div id="streakBody"></div>
+ </div>
+
  <!-- Progress chart -->
  <div class="card" id="ovProgressCard" style="display:none;margin-top:10px;">
   <div class="card-hdr">
@@ -1227,16 +1233,22 @@ function renderLatestActivity(){
   </div>
  </div>
  <div class="ac-details" style="padding:0 13px;">
-  <div style="display:flex;gap:20px;padding-top:10px;border-top:1px solid #f5f5f5;margin-top:10px;">
-   <div><i class="fa-solid fa-fire" style="color:#344f1f;margin-right:5px;"></i><span style="font-size:16px;font-weight:700;color:#1a1a1a;">${streak}</span><span style="font-size:9px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:.5px;margin-left:4px;">Day Streak</span>${streak>0?`<div style="font-size:9px;color:#666;margin-top:1px;">since ${streakStart}</div>`:''}</div>
-   <div><i class="fa-solid fa-fire" style="color:#344f1f;margin-right:5px;"></i><span style="font-size:16px;font-weight:700;color:#1a1a1a;">${weekSet.size}</span><span style="font-size:9px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:.5px;margin-left:4px;">Active Weeks</span><div style="font-size:9px;color:#666;margin-top:1px;">since ${firstActivity}</div></div>
-  </div>
-  <div style="font-size:11px;color:#1a1a1a;margin-top:8px;padding-bottom:10px;">${wkMins} min active · ${wk.length} workouts this week</div>
-  ${zrows?`<div class="ac-zw" style="padding:8px 0 10px;border-top:1px solid #f5f5f5;">${zrows}<div class="est-note">${zNote}</div></div>`:''}
+  ${zrows?`<div class="ac-zw" style="padding:10px 0;border-top:1px solid #f5f5f5;margin-top:8px;">${zrows}<div class="est-note">${zNote}</div></div>`:''}
   <a href="https://www.strava.com/activities/${a.id}" target="_blank" rel="noopener" class="ac-strava" onclick="event.stopPropagation();" style="margin:0 -13px;">View on Strava ↗</a>
  </div>
  </div>`;
  document.getElementById('latestCard').style.display='block';
+
+ // Activity Summary (streak + week stats) — its own section below
+ document.getElementById('streakBody').innerHTML=`
+ <div style="padding:0 13px 12px;">
+  <div style="display:flex;gap:20px;">
+   <div><i class="fa-solid fa-fire" style="color:#344f1f;margin-right:5px;"></i><span style="font-size:18px;font-weight:700;color:#1a1a1a;">${streak}</span><span style="font-size:9px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:.5px;margin-left:4px;">Day Streak</span>${streak>0?`<div style="font-size:10px;color:#666;margin-top:2px;">since ${streakStart}</div>`:''}</div>
+   <div><i class="fa-solid fa-fire" style="color:#344f1f;margin-right:5px;"></i><span style="font-size:18px;font-weight:700;color:#1a1a1a;">${weekSet.size}</span><span style="font-size:9px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:.5px;margin-left:4px;">Active Weeks</span><div style="font-size:10px;color:#666;margin-top:2px;">since ${firstActivity}</div></div>
+  </div>
+  <div style="font-size:11px;color:#1a1a1a;margin-top:10px;padding-top:10px;border-top:1px solid #f5f5f5;">${wkMins} min active · ${wk.length} workouts this week</div>
+ </div>`;
+ document.getElementById('streakCard').style.display='block';
 }
 
 // ── READINESS SCORE ──────────────────────────────────────────────────
