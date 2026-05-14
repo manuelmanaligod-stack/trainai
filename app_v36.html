@@ -1409,13 +1409,22 @@ function renderHrZones(tab){
  }).join('');
  } else {
  const totals=[0,0,0,0,0];
- acts.forEach(a=>{const e=getActivityZones(a);if(e)e.forEach((t,i)=>totals[i]+=t);});
+ let exactCount=0,estCount=0;
+ acts.forEach(a=>{
+  const e=getActivityZones(a);
+  if(e){
+   e.forEach((t,i)=>totals[i]+=t);
+   if(Array.isArray(a.hr_zones)&&a.hr_zones.some(t=>t>0))exactCount++;else estCount++;
+  }
+ });
  const grand=totals.reduce((s,t)=>s+t,0)||1,maxT=Math.max(...totals,1);
+ const srcLabel=exactCount&&!estCount?'<i class="fa-solid fa-circle-check" style="color:#34C759;margin-right:4px;"></i>Exact zones from Strava':(!exactCount&&estCount?'<i class="fa-solid fa-circle-info" style="color:#999;margin-right:4px;"></i>Estimated from avg HR':`<i class="fa-solid fa-circle-half-stroke" style="color:#999;margin-right:4px;"></i>${exactCount} exact · ${estCount} estimated`);
  const hrHdr=`<div class="zrow" style="padding-bottom:5px;margin-bottom:4px;border-bottom:1px solid #f5f5f5;"><div class="zr-dot" style="background:transparent"></div><div class="zr-name"></div><div class="zr-range" style="font-size:9px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:.5px;">BPM</div><div style="flex:1;"></div><div class="zr-time" style="font-size:9px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:.5px;">Time</div><div class="zr-pct" style="font-size:9px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:.5px;">%</div></div>`;
+ const srcFoot=(exactCount+estCount)>0?`<div class="est-note" style="margin-top:6px;">${srcLabel}</div>`:'';
  document.getElementById('hrZones').innerHTML=hrHdr+
  totals.map((t,i)=>{const pct=Math.round(t/grand*100);
  return `<div class="zrow"><div class="zr-dot" style="background:${ZC[i]}"></div><div class="zr-name">${ZN[i]}</div><div class="zr-range">${ZR[i]}</div><div class="zr-track"><div class="zr-fill" style="width:${pct}%;background:${ZC[i]}"></div></div><div class="zr-time">${fmtT2(t)}</div><div class="zr-pct">${pct}%</div></div>`;
- }).join('');
+ }).join('')+srcFoot;
  }
 }
 
@@ -1539,7 +1548,9 @@ function acHtml(a){
  const zoneBg=domZoneIdx>=0?ZC[domZoneIdx]:'#1a1a1a';
  const zoneTxt=domZoneIdx===2?'#1a1a1a':'#fff';
  const summary=`<div class="ac-top"><div class="ac-info"><div class="ac-name"><span style="margin-right:7px;">${inlineIco}</span>${a.name}${isPR?'<i class="fa-solid fa-medal" style="color:#D4A800;margin-left:8px;font-size:.95em;"></i><span style="color:#D4A800;font-weight:700;font-size:.85em;margin-left:4px;letter-spacing:.4px;">PR</span>':''}</div><div class="ac-meta">${a.date} · ${Math.round(a.duration)} min</div></div><div class="ac-arr">▾</div></div>${statCells.length?`<div class="ac-stats-row">${statCells.join('')}</div>`:''}`;
- const details=`${a.highlight?`<div class="ac-hl"><div class="hl-s"></div><div class="hl-t">${a.highlight}</div></div>`:''}${a.description?`<div class="ac-desc">${a.description}</div>`:''}${a.comparison?`<div class="ac-cmp">${a.comparison}</div>`:''}${zrows?`<div class="ac-zw">${zrows}<div class="est-note">Estimated from avg HR</div></div>`:''}<a href="https://www.strava.com/activities/${a.id}" target="_blank" rel="noopener" class="ac-strava" onclick="event.stopPropagation();">View on Strava ↗</a>`;
+ const zoneSrcExact=Array.isArray(a.hr_zones)&&a.hr_zones.some(t=>t>0);
+ const zoneNote=zoneSrcExact?'<i class="fa-solid fa-circle-check" style="color:#34C759;margin-right:4px;"></i>Exact zones from Strava':'<i class="fa-solid fa-circle-info" style="color:#999;margin-right:4px;"></i>Estimated from avg HR';
+ const details=`${a.highlight?`<div class="ac-hl"><div class="hl-s"></div><div class="hl-t">${a.highlight}</div></div>`:''}${a.description?`<div class="ac-desc">${a.description}</div>`:''}${a.comparison?`<div class="ac-cmp">${a.comparison}</div>`:''}${zrows?`<div class="ac-zw">${zrows}<div class="est-note">${zoneNote}</div></div>`:''}<a href="https://www.strava.com/activities/${a.id}" target="_blank" rel="noopener" class="ac-strava" onclick="event.stopPropagation();">View on Strava ↗</a>`;
  return `<div class="ac"><div class="ac-summary" onclick="toggleAc(this.parentNode)">${summary}</div><div class="ac-details">${details}</div></div>`;
 }
 
