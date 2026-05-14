@@ -1873,7 +1873,7 @@ function renderOvProgress(){
   const weekMins=weekFiltered.reduce((s,a)=>s+a.duration,0);
   const weekElev=weekFiltered.reduce((s,a)=>s+(a.elev||0),0);
   const wH=Math.floor(weekMins/60),wM=Math.round(weekMins%60);
-  const weekTimeStr=wH>0?`${wH}h ${wM}m`:`${wM}m`;
+  const weekTimeStr=`${wH}:${String(wM).padStart(2,'0')}`;
 
   // Goal progress bar helper
   const goalBar=(val,goal,unit)=>{
@@ -1894,13 +1894,14 @@ function renderOvProgress(){
   const wGoalElev=parseFloat(localStorage.getItem(_wKey(ovSport,'elev')))||0;
   if(statsEl){
     const sc=(val,lbl,barHtml,goalVal,unit)=>{
-      const display=goalVal?`${val}<span style="font-size:11px;font-weight:500;color:#666;"> / ${goalVal}${unit?' '+unit:''}</span>`:val;
+      const display=goalVal?`${val}<span style="color:#666;font-weight:600;"> / ${goalVal}${unit?' '+unit:''}</span>`:val;
       return `<div style="flex:1;background:#f8f8f6;border-radius:10px;padding:8px 10px;"><div style="font-size:15px;font-weight:700;color:#1a1a1a;">${display}</div><div style="font-size:9px;color:#1a1a1a;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;">${lbl}</div>${barHtml||''}</div>`;
     };
+    // Format goal hours as "H:00" to match the actual time format
+    const goalTimeStr=wGoalTimeH?`${Math.floor(wGoalTimeH)}:${String(Math.round((wGoalTimeH%1)*60)).padStart(2,'0')}`:null;
     let cells='';
     if(!isStrength)cells+=sc(weekDist.toFixed(1)+' km','Distance',wGoalKm?goalBar(weekDist,wGoalKm,'km'):'',wGoalKm?wGoalKm:null,'km');
-    cells+=sc(weekTimeStr,'Time',wGoalTimeH?goalBar(weekMins/60,wGoalTimeH,'h'):'',wGoalTimeH?wGoalTimeH+'h':null,'');
-    if(!isStrength&&!isSwim)cells+=sc(Math.round(weekElev)+' m','Elev Gain',wGoalElev?goalBar(weekElev,wGoalElev,'m'):'',wGoalElev?wGoalElev:null,'m');
+    cells+=sc(weekTimeStr,'Time',wGoalTimeH?goalBar(weekMins/60,wGoalTimeH,'h'):'',goalTimeStr,'');
     statsEl.innerHTML=cells;
     statsEl.style.display='flex';
   }
