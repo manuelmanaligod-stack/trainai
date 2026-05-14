@@ -720,11 +720,11 @@ canvas{width:100%!important;}
  <!-- Run-zone filter (May 2026 + Run filter only) -->
  <div id="runZoneRow" style="display:none;margin:8px 14px 0;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;gap:6px;-webkit-overflow-scrolling:touch;">
  <div class="fchip active" onclick="setWRunZone('all',this)" style="flex-shrink:0;">All</div>
- <div class="fchip" onclick="setWRunZone(1,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#5AC8FA;margin-right:5px;"></span>Zone 1</div>
- <div class="fchip" onclick="setWRunZone(2,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#34C759;margin-right:5px;"></span>Zone 2</div>
- <div class="fchip" onclick="setWRunZone(3,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#FFD60A;margin-right:5px;"></span>Zone 3</div>
- <div class="fchip" onclick="setWRunZone(4,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#FF9F0A;margin-right:5px;"></span>Zone 4</div>
- <div class="fchip" onclick="setWRunZone(5,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#FF375F;margin-right:5px;"></span>Zone 5</div>
+ <div class="fchip" onclick="setWRunZone(1,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#5AC8FA;margin-right:5px;"></span>Z1 Recovery</div>
+ <div class="fchip" onclick="setWRunZone(2,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#34C759;margin-right:5px;"></span>Z2 Aerobic</div>
+ <div class="fchip" onclick="setWRunZone(3,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#FFD60A;margin-right:5px;"></span>Z3 Tempo</div>
+ <div class="fchip" onclick="setWRunZone(4,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#FF9F0A;margin-right:5px;"></span>Z4 Threshold</div>
+ <div class="fchip" onclick="setWRunZone(5,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#FF375F;margin-right:5px;"></span>Z5 Max</div>
  </div>
  <div id="monthBlocks"></div>
  <div class="pgrow" id="pgRow" style="display:none">
@@ -885,7 +885,7 @@ canvas{width:100%!important;}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
 const ZC=['#5AC8FA','#34C759','#FFD60A','#FF9F0A','#FF375F'];
-const ZN=['Zone 1','Zone 2','Zone 3','Zone 4','Zone 5'];
+const ZN=['Z1 Recovery','Z2 Aerobic','Z3 Tempo','Z4 Threshold','Z5 Max'];
 const ZR=['<124','124–154','154–169','169–184','184+'];
 const ZB=[0,124,154,169,184,999];
 // Pace zones based on ~5:15/km threshold (Z4). Seconds per km.
@@ -1635,10 +1635,8 @@ function acHtml(a){
  const durStr=dH>0?`${dH}:${pad(dM)}:${pad(dS)}`:`${dM}:${pad(dS)}`;
  statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val">${durStr}</div><div class="ac-stat-lbl">Time</div></div>`);
  if(paceStr)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val">${paceStr}</div><div class="ac-stat-lbl">Pace /km</div></div>`);
- // Pilot: show "Zone X" sub-label under AVG HR for May 2026 runs
  const isMayRun=a.date&&a.date.startsWith('2026-05')&&(a.sport==='Run'||a.sport==='VirtualRun');
- const zSubLbl=(isMayRun&&domZoneIdx>=0)?`<div style="font-size:9px;font-weight:600;color:${ZC[domZoneIdx]};margin-top:2px;letter-spacing:.3px;">ZONE ${domZoneIdx+1}</div>`:'';
- if(a.avg_hr)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val" style="color:#1a1a1a">${Math.round(a.avg_hr)}<span style="font-size:9px;font-weight:400;color:#1a1a1a"> bpm</span></div><div class="ac-stat-lbl">AVG HR</div>${zSubLbl}</div>`);
+ if(a.avg_hr)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val" style="color:#1a1a1a">${Math.round(a.avg_hr)}<span style="font-size:9px;font-weight:400;color:#1a1a1a"> bpm</span></div><div class="ac-stat-lbl">AVG HR</div></div>`);
  if(a.elev>0)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val">${Math.round(a.elev)}<span style="font-size:9px;font-weight:400;color:#1a1a1a"> m</span></div><div class="ac-stat-lbl">Elev Gain</div></div>`);
  // Pilot: splits table for May 2026 runs that have splits data
  let splitsHtml='';
@@ -1669,7 +1667,10 @@ function acHtml(a){
  const inlineIco=IC[WI[a.sport]||'run']||'';
  const zoneBg=domZoneIdx>=0?ZC[domZoneIdx]:'#1a1a1a';
  const zoneTxt=domZoneIdx===2?'#1a1a1a':'#fff';
- const summary=`<div class="ac-top"><div class="ac-info"><div class="ac-name"><span style="margin-right:7px;">${inlineIco}</span>${a.name}${isPR?'<i class="fa-solid fa-medal" style="color:#D4A800;margin-left:8px;font-size:.95em;"></i><span style="color:#D4A800;font-weight:700;font-size:.85em;margin-left:4px;letter-spacing:.4px;">PR</span>':''}</div><div class="ac-meta">${fmtWorkoutDate(a.date,a.start_time)}</div></div><div class="ac-arr">▾</div></div>${statCells.length?`<div class="ac-stats-row">${statCells.join('')}</div>`:''}`;
+ // Pilot: show zone pill beside title for May 2026 runs
+ const zPillTxt=domZoneIdx===2?'#1a1a1a':'#fff';
+ const zonePill=(isMayRun&&domZoneIdx>=0)?`<span style="display:inline-block;background:${ZC[domZoneIdx]};color:${zPillTxt};font-size:9px;font-weight:700;letter-spacing:.3px;padding:2px 7px;border-radius:5px;margin-left:8px;vertical-align:middle;">${ZN[domZoneIdx]}</span>`:'';
+ const summary=`<div class="ac-top"><div class="ac-info"><div class="ac-name"><span style="margin-right:7px;">${inlineIco}</span>${a.name}${zonePill}${isPR?'<i class="fa-solid fa-medal" style="color:#D4A800;margin-left:8px;font-size:.95em;"></i><span style="color:#D4A800;font-weight:700;font-size:.85em;margin-left:4px;letter-spacing:.4px;">PR</span>':''}</div><div class="ac-meta">${fmtWorkoutDate(a.date,a.start_time)}</div></div><div class="ac-arr">▾</div></div>${statCells.length?`<div class="ac-stats-row">${statCells.join('')}</div>`:''}`;
  const details=`${a.highlight?`<div class="ac-hl"><div class="hl-s"></div><div class="hl-t">${a.highlight}</div></div>`:''}${a.description?`<div class="ac-desc">${a.description}</div>`:''}${a.comparison?`<div class="ac-cmp">${a.comparison}</div>`:''}${zrows?`<div class="ac-zw">${zrows}</div>`:''}${splitsHtml}<a href="https://www.strava.com/activities/${a.id}" target="_blank" rel="noopener" class="ac-strava" onclick="event.stopPropagation();">View on Strava ↗</a>`;
  return `<div class="ac"><div class="ac-summary" onclick="toggleAc(this.parentNode)">${summary}</div><div class="ac-details">${details}</div></div>`;
 }
