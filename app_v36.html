@@ -1648,17 +1648,17 @@ function acHtml(a){
    const pace=km>0?s.time/km:0;
    const hrClr=s.hr?ZC[s.hr>184?4:s.hr>=169?3:s.hr>=154?2:s.hr>=124?1:0]:'#999';
    const elevSign=s.elev>0?'+':'';
-   return `<div style="display:grid;grid-template-columns:84px 56px 1fr 54px 30px;gap:6px;align-items:center;padding:4px 0;border-top:1px solid #f5f5f5;font-size:11px;">
+   return `<div style="display:grid;grid-template-columns:24px 60px 1fr 50px 40px;gap:6px;align-items:center;padding:4px 0;border-top:1px solid #f5f5f5;font-size:11px;">
     <div style="color:#666;font-weight:600;">${s.n}</div>
     <div style="color:#1a1a1a;font-weight:600;">${fmtPaceMin(pace)}</div>
-    <div style="background:#f5f5f0;border-radius:3px;height:5px;overflow:hidden;"><div style="height:100%;width:${Math.min(100,(pace/600)*100)}%;background:#2E86C1;"></div></div>
+    <div style="background:#f5f5f0;border-radius:3px;height:5px;overflow:hidden;"><div style="height:100%;width:${Math.min(100,(pace/600)*100)}%;background:#344f1f;"></div></div>
     <div style="color:${hrClr};font-weight:600;text-align:right;">${s.hr||'—'}<span style="font-size:8px;color:#999;">bpm</span></div>
     <div style="color:#666;text-align:right;font-size:10px;">${elevSign}${Math.round(s.elev)}m</div>
    </div>`;
   }).join('');
   splitsHtml=`<div class="ac-zw" style="padding:10px 0;border-top:1px solid #f5f5f5;margin-top:8px;">
    <div style="font-size:10px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">Splits</div>
-   <div style="display:grid;grid-template-columns:84px 56px 1fr 54px 30px;gap:6px;font-size:9px;color:#999;text-transform:uppercase;letter-spacing:.4px;padding-bottom:2px;">
+   <div style="display:grid;grid-template-columns:24px 60px 1fr 50px 40px;gap:6px;font-size:9px;color:#999;text-transform:uppercase;letter-spacing:.4px;padding-bottom:2px;">
     <div>KM</div><div>Pace</div><div></div><div style="text-align:right;">HR</div><div style="text-align:right;">Elev</div>
    </div>
    ${rows}
