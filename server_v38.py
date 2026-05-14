@@ -934,23 +934,35 @@ class Handler(BaseHTTPRequestHandler):
 
 def boot_sync_if_empty():
     """If the DB is brand-new/empty (e.g. after a Render deploy wiped it),
-    kick off an initial sync in a background thread so the first user request
-    doesn't have to wait. Quietly skips if Strava is rate-limited."""
+    kick off an initial sync in a background thread. Probes Strava's read
+    rate-limit header first and bails out if we're already at the daily cap
+    so we don't waste boot cycles hitting 429s."""
     try:
         with get_db() as conn:
             n = conn.execute("SELECT COUNT(*) FROM activities").fetchone()[0]
         if n > 0:
-            return  # DB already populated
+            return
         import threading
         def _sync():
             try:
                 token = get_access_token()
+                # Cheap probe: ask Strava for 1 activity. If 429, abort so we don't
+                # blow through more rate-limit budget on a doomed sync attempt.
+                probe = requests.get(
+                    "https://www.strava.com/api/v3/athlete/activities",
+                    headers={"Authorization": f"Bearer {token}"},
+                    params={"per_page": 1, "page": 1},
+                    timeout=15
+                )
+                if probe.status_code == 429:
+                    print(f"[Boot] Strava rate-limited (read usage: {probe.headers.get('x-readratelimit-usage','?')}) — deferring sync")
+                    return
                 added = sync_activities_to_db(token, force=True)
                 print(f"[Boot] Auto-synced {added} activities to fresh DB")
             except Exception as e:
-                print(f"[Boot] Auto-sync deferred (will retry on first request): {e}")
+                print(f"[Boot] Auto-sync failed: {e}")
         threading.Thread(target=_sync, daemon=True).start()
-        print("[Boot] DB empty — kicked off background sync from Strava")
+        print("[Boot] DB empty — probing Strava before sync")
     except Exception as e:
         print(f"[Boot] Skipping auto-sync: {e}")
 
