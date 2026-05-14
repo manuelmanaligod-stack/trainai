@@ -1009,6 +1009,14 @@ async function saveGoals(){
   if(allActs.length>0)renderOvProgress();
 }
 async function loadGoalsFromServer(){
+  // Offline mode: use baked-in goals if present
+  if(window.__OFFLINE_GOALS__){
+    const g=window.__OFFLINE_GOALS__;
+    GKEYS.forEach(k=>{if(g[k]){localStorage.setItem(k,g[k]);const e=document.getElementById(k);if(e)e.value=g[k];}});
+    SPORTS.forEach(sp=>{['km','time','elev'].forEach(t=>{const k=_wKey(sp,t);if(g[k])localStorage.setItem(k,g[k]);});});
+    console.log('[Goals] Loaded from offline bundle');
+    return;
+  }
   try{
     const r=await fetch('/goals');if(!r.ok)return;
     const g=await r.json();
@@ -2274,6 +2282,13 @@ function hideCacheBar(){
 
 // ── ANALYZE ───────────────────────────────────────────────────────────
 async function analyze(forceRefresh=false){
+ // Offline mode: use baked-in data, skip network entirely
+ if(window.__OFFLINE_DATA__){
+  applyData(window.__OFFLINE_DATA__);
+  // Soft-hide the cache bar / force-refresh since we're fully offline
+  const cb=document.getElementById('cacheBar');if(cb)cb.style.display='none';
+  return;
+ }
  // Check cache first (unless forced refresh)
  if(!forceRefresh){
  const cached=loadCache();

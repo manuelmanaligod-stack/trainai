@@ -492,6 +492,87 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 self.send_response(404)
                 self.end_headers()
+        elif self.path == "/export":
+            # Build a self-contained offline HTML with all data baked in.
+            try:
+                # Pull everything from the DB without touching Strava
+                with get_db() as conn:
+                    rows = conn.execute(
+                        "SELECT * FROM activities WHERE date >= '2025-01-01' ORDER BY date DESC, strava_id DESC"
+                    ).fetchall()
+                    be_rows = conn.execute("SELECT * FROM best_efforts").fetchall()
+                    g_rows = conn.execute("SELECT key, value FROM goals").fetchall()
+                    ai_row = conn.execute("SELECT * FROM ai_cache WHERE id=1").fetchone()
+
+                activities = []
+                for a in rows:
+                    activities.append({
+                        "id":          a["strava_id"],
+                        "date":        a["date"],
+                        "name":        a["name"],
+                        "sport":       a["sport"],
+                        "distance":    a["distance"],
+                        "duration":    a["duration"],
+                        "avg_hr":      a["avg_hr"],
+                        "max_hr":      a["max_hr"],
+                        "zone":        a["zone"],
+                        "highlight":   a["highlight"] or "",
+                        "description": a["description"] or "",
+                        "comparison":  a["comparison"] or "",
+                        "calories":    a["calories"],
+                        "elev":        a["elev"],
+                        "hr_zones":    json.loads(a["hr_zones"]) if a["hr_zones"] else None,
+                        "start_time":  a["start_time"],
+                        "splits":      json.loads(a["splits"]) if a["splits"] else None,
+                    })
+
+                best_efforts = [dict(r) for r in be_rows]
+                goals = {r["key"]: r["value"] for r in g_rows}
+                ai = {
+                    "summary":      ai_row["summary"] if ai_row else "",
+                    "analysis":     ai_row["analysis"] if ai_row else "",
+                    "next_workout": json.loads(ai_row["next_workout"]) if ai_row and ai_row["next_workout"] else {},
+                }
+
+                runs = [a for a in activities if a["sport"] == "Run"]
+                wts  = [a for a in activities if a["sport"] == "WeightTraining"]
+                payload = {
+                    "success":      True,
+                    "activities":   activities,
+                    "summary":      ai["summary"],
+                    "analysis":     ai["analysis"],
+                    "next_workout": ai["next_workout"],
+                    "best_efforts": best_efforts,
+                    "stats": {
+                        "total_runs":       len(runs),
+                        "total_km":         round(sum(a["distance"] for a in runs), 1),
+                        "total_activities": len(activities),
+                        "weight_sessions":  len(wts),
+                    },
+                    "exported_at": datetime.now().isoformat(),
+                }
+
+                html = read_file("app_v36.html")
+                inject = (
+                    f"<script>"
+                    f"window.__OFFLINE_DATA__={json.dumps(payload)};"
+                    f"window.__OFFLINE_GOALS__={json.dumps(goals)};"
+                    f"</script>"
+                )
+                html = html.replace("</head>", inject + "</head>", 1)
+
+                self.send_response(200)
+                self.send_header("Content-type", "text/html; charset=utf-8")
+                self.send_header("Content-Disposition", 'attachment; filename="gear2_offline.html"')
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                self.wfile.write(html.encode("utf-8"))
+                print(f"[Export] Served offline bundle: {len(activities)} activities")
+            except Exception as e:
+                import traceback; traceback.print_exc()
+                self.send_response(500); self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
+            return
         elif self.path == "/zones_status":
             try:
                 with get_db() as conn:
