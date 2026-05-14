@@ -93,34 +93,70 @@ def classify_zone(avg_hr):
         if lo <= avg_hr < hi: return i + 1
     return 5
 
+ZONE_THRESHOLDS = [(0,124),(124,154),(154,169),(169,184),(184,999)]
+
 def fetch_activity_zones(token, strava_id):
-    """Fetch Strava's exact HR zone distribution for one activity.
+    """Compute exact HR time-in-zone for one activity from Strava's free
+    /streams endpoint (per-second HR samples).
     Returns (json_str, status) where status is one of:
-      'ok'      — zones found, json_str is the data
-      'no_hr'   — request OK but no heartrate block / all zeros
+      'ok'      — zones computed, json_str is the [s_z1..s_z5] data
+      'no_hr'   — request OK but no heartrate stream present
       'limited' — Strava rate-limited (429); caller should stop
-      'missing' — 404 / activity has no zones endpoint
+      'missing' — 404 / activity not found
+      'paid'    — 402 (premium required — shouldn't happen with streams)
       'error'   — other failure"""
     try:
         r = requests.get(
-            f"https://www.strava.com/api/v3/activities/{strava_id}/zones",
+            f"https://www.strava.com/api/v3/activities/{strava_id}/streams",
             headers={"Authorization": f"Bearer {token}"},
-            timeout=8
+            params={"keys": "heartrate,time", "key_by_type": "true"},
+            timeout=12
         )
         if r.status_code == 429:
             return None, 'limited'
         if r.status_code == 404:
             return None, 'missing'
+        if r.status_code == 402:
+            return None, 'paid'
         if r.status_code != 200:
             return None, 'error'
-        for block in r.json():
-            if block.get("type") == "heartrate":
-                buckets = block.get("distribution_buckets", [])
-                times = [b.get("time", 0) for b in buckets[:5]]
-                while len(times) < 5:
-                    times.append(0)
-                if sum(times) > 0:
-                    return json.dumps(times), 'ok'
+
+        data = r.json()
+        hr_stream = data.get("heartrate", {}).get("data")
+        time_stream = data.get("time", {}).get("data")
+        if not hr_stream:
+            return None, 'no_hr'
+
+        # Count seconds in each zone.
+        # If we have a time stream, use deltas between samples; otherwise
+        # assume samples are ~1 second apart (Strava's default resolution).
+        times = [0, 0, 0, 0, 0]
+        if time_stream and len(time_stream) == len(hr_stream):
+            for i, hr in enumerate(hr_stream):
+                if hr is None or hr <= 0:
+                    continue
+                if i + 1 < len(time_stream):
+                    dt = max(0, time_stream[i+1] - time_stream[i])
+                else:
+                    dt = 1
+                # cap weird gaps (paused recordings) at 5s
+                if dt > 5:
+                    dt = 1
+                for zi, (lo, hi) in enumerate(ZONE_THRESHOLDS):
+                    if lo <= hr < hi:
+                        times[zi] += dt
+                        break
+        else:
+            for hr in hr_stream:
+                if hr is None or hr <= 0:
+                    continue
+                for zi, (lo, hi) in enumerate(ZONE_THRESHOLDS):
+                    if lo <= hr < hi:
+                        times[zi] += 1
+                        break
+
+        if sum(times) > 0:
+            return json.dumps([int(t) for t in times]), 'ok'
         return None, 'no_hr'
     except Exception as e:
         print(f"[Zones] Failed for {strava_id}: {e}")
@@ -469,7 +505,7 @@ class Handler(BaseHTTPRequestHandler):
                         (limit,)
                     ).fetchall()
 
-                counts = {"ok": 0, "no_hr": 0, "missing": 0, "error": 0, "limited": 0}
+                counts = {"ok": 0, "no_hr": 0, "missing": 0, "error": 0, "limited": 0, "paid": 0}
                 hit_limit = False
                 processed = 0
                 for r in rows:
