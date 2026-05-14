@@ -82,6 +82,11 @@ def init_db():
             print("[DB] Added start_time column.")
         except sqlite3.OperationalError:
             pass  # column already exists
+        try:
+            conn.execute("ALTER TABLE activities ADD COLUMN splits TEXT DEFAULT NULL")
+            print("[DB] Added splits column.")
+        except sqlite3.OperationalError:
+            pass  # column already exists
     print("[DB] Initialized.")
 
 # ── STRAVA ────────────────────────────────────────────────────────────
@@ -100,6 +105,36 @@ def classify_zone(avg_hr):
     return 5
 
 ZONE_THRESHOLDS = [(0,124),(124,154),(154,169),(169,184),(184,999)]
+
+def fetch_activity_splits(token, strava_id):
+    """Fetch per-km splits from Strava's /activities/{id} detail endpoint.
+    Returns (json_str, status). Status: ok | no_splits | limited | error."""
+    try:
+        r = requests.get(
+            f"https://www.strava.com/api/v3/activities/{strava_id}",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=10
+        )
+        if r.status_code == 429:
+            return None, 'limited'
+        if r.status_code != 200:
+            return None, 'error'
+        splits = r.json().get("splits_metric", [])
+        if not splits:
+            return None, 'no_splits'
+        compact = [{
+            "n": s.get("split"),
+            "distance": round(s.get("distance", 0), 2),
+            "time": s.get("moving_time", 0),
+            "elev": round(s.get("elevation_difference", 0), 1),
+            "hr": round(s.get("average_heartrate"), 0) if s.get("average_heartrate") else None,
+            "speed": s.get("average_speed"),
+            "pace_zone": s.get("pace_zone"),
+        } for s in splits]
+        return json.dumps(compact), 'ok'
+    except Exception as e:
+        print(f"[Splits] Failed for {strava_id}: {e}")
+        return None, 'error'
 
 def fetch_activity_zones(token, strava_id):
     """Compute exact HR time-in-zone for one activity from Strava's free
@@ -496,6 +531,45 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(404); self.end_headers()
 
     def do_POST(self):
+        if self.path == "/backfill_splits":
+            # Backfill per-km splits for Run activities. Defaults to May 2026 only.
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(length) if length else b'{}'
+                try: payload = json.loads(body)
+                except: payload = {}
+                month_prefix = payload.get("month", "2026-05")
+                limit = int(payload.get("limit", 30))
+                token = get_access_token()
+                with get_db() as conn:
+                    rows = conn.execute(
+                        "SELECT strava_id, date, name FROM activities WHERE splits IS NULL AND sport IN ('Run','VirtualRun') AND date LIKE ? ORDER BY date DESC LIMIT ?",
+                        (month_prefix + "%", limit)
+                    ).fetchall()
+                counts = {"ok": 0, "no_splits": 0, "limited": 0, "error": 0}
+                hit_limit = False
+                for r in rows:
+                    sid = r["strava_id"]
+                    s, status = fetch_activity_splits(token, sid)
+                    counts[status] = counts.get(status, 0) + 1
+                    if status == 'limited':
+                        hit_limit = True
+                        break
+                    if s:
+                        with get_db() as conn:
+                            conn.execute("UPDATE activities SET splits=? WHERE strava_id=?", (s, sid))
+                    time.sleep(0.1)
+                print(f"[BackfillSplits] {month_prefix}: ok={counts['ok']} no_splits={counts['no_splits']} limited={counts['limited']} error={counts['error']}")
+                self.send_response(200)
+                self.send_header("Content-type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"ok": True, "month": month_prefix, "counts": counts, "hit_rate_limit": hit_limit}).encode())
+            except Exception as e:
+                import traceback; traceback.print_exc()
+                self.send_response(500); self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
+            return
+
         if self.path == "/backfill_times":
             # Re-fetch /athlete/activities and update start_time for existing rows.
             # Strava's list endpoint is cheap (one page covers ~30 activities).
@@ -720,6 +794,7 @@ class Handler(BaseHTTPRequestHandler):
                         "elev":        a["elev"],
                         "hr_zones":    json.loads(a["hr_zones"]) if a.get("hr_zones") else None,
                         "start_time":  a.get("start_time"),
+                        "splits":      json.loads(a["splits"]) if a.get("splits") else None,
                     })
 
                 try:    best_efforts = get_best_efforts_from_db(token)

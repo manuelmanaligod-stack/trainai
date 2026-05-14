@@ -717,6 +717,15 @@ canvas{width:100%!important;}
  </div>
  <div class="scroll-arr">›</div>
  </div>
+ <!-- Run-zone filter (May 2026 + Run filter only) -->
+ <div id="runZoneRow" style="display:none;margin:8px 14px 0;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;gap:6px;-webkit-overflow-scrolling:touch;">
+ <div class="fchip active" onclick="setWRunZone('all',this)" style="flex-shrink:0;">All</div>
+ <div class="fchip" onclick="setWRunZone(1,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#5AC8FA;margin-right:5px;"></span>Zone 1</div>
+ <div class="fchip" onclick="setWRunZone(2,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#34C759;margin-right:5px;"></span>Zone 2</div>
+ <div class="fchip" onclick="setWRunZone(3,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#FFD60A;margin-right:5px;"></span>Zone 3</div>
+ <div class="fchip" onclick="setWRunZone(4,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#FF9F0A;margin-right:5px;"></span>Zone 4</div>
+ <div class="fchip" onclick="setWRunZone(5,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#FF375F;margin-right:5px;"></span>Zone 5</div>
+ </div>
  <div id="monthBlocks"></div>
  <div class="pgrow" id="pgRow" style="display:none">
  <button class="pgbtn" id="pgPrev" onclick="pgChange(-1)">← Prev</button>
@@ -1487,7 +1496,16 @@ function renderHrZones(tab){
 
 // ── WORKOUTS ─────────────────────────────────────────────────────────
 function setWF(f,el){wFilter=f;wPage=0;document.querySelectorAll('#typeFilter .fchip').forEach(c=>c.classList.remove('active'));el.classList.add('active');renderMonthBlocks();}
+function setWRunZone(z,el){wRunZone=z;wPage=0;document.querySelectorAll('#runZoneRow .fchip').forEach(c=>c.classList.remove('active'));el.classList.add('active');renderMonthBlocks();}
+// Returns dominant HR zone index (0..4) or -1 if no zone data
+function getDomZoneIdx(a){
+ if(!Array.isArray(a.hr_zones))return -1;
+ const tot=a.hr_zones.reduce((s,t)=>s+t,0);
+ if(tot<=0)return -1;
+ return a.hr_zones.indexOf(Math.max(...a.hr_zones));
+}
 let wMonth='all'; // 'all' or 'YYYY-MM'
+let wRunZone='all'; // 'all' or 1..5 — Run-type zone filter (pilot: May 2026 runs only)
 function setWMonth(m,el){wMonth=m;wPage=0;document.querySelectorAll('#monthTabs .stab').forEach(t=>t.classList.remove('active'));el.classList.add('active');renderMonthBlocks();}
 
 function buildMonthTabs(){
@@ -1516,10 +1534,18 @@ function setYear(y,el){
 }
 
 function renderMonthBlocks(){
+ // Show run-zone filter only for May 2026 + Run filter (pilot)
+ const isMayRunPilot=wMonth==='2026-05'&&wFilter==='Run';
+ const rzRow=document.getElementById('runZoneRow');
+ if(rzRow)rzRow.style.display=isMayRunPilot?'flex':'none';
+ if(!isMayRunPilot)wRunZone='all'; // reset when filter is hidden
  let acts=allActs.filter(a=>{
  if(parseInt(a.date.slice(0,4))!==wYear)return false;
  if(wMonth!=='all'&&!a.date.startsWith(wMonth))return false;
- return wFilter==='All'||a.sport===wFilter;
+ if(wFilter==='Run'){if(a.sport!=='Run'&&a.sport!=='VirtualRun')return false;}
+ else if(wFilter!=='All'&&a.sport!==wFilter)return false;
+ if(wRunZone!=='all'){const z=getDomZoneIdx(a);if(z<0||z+1!==wRunZone)return false;}
+ return true;
  });
 
  // Snapshot — all sports for km and elev
@@ -1609,13 +1635,42 @@ function acHtml(a){
  const durStr=dH>0?`${dH}:${pad(dM)}:${pad(dS)}`:`${dM}:${pad(dS)}`;
  statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val">${durStr}</div><div class="ac-stat-lbl">Time</div></div>`);
  if(paceStr)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val">${paceStr}</div><div class="ac-stat-lbl">Pace /km</div></div>`);
- if(a.avg_hr)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val" style="color:#1a1a1a">${Math.round(a.avg_hr)}<span style="font-size:9px;font-weight:400;color:#1a1a1a"> bpm</span></div><div class="ac-stat-lbl">AVG HR</div></div>`);
+ // Pilot: show "Zone X" sub-label under AVG HR for May 2026 runs
+ const isMayRun=a.date&&a.date.startsWith('2026-05')&&(a.sport==='Run'||a.sport==='VirtualRun');
+ const zSubLbl=(isMayRun&&domZoneIdx>=0)?`<div style="font-size:9px;font-weight:600;color:${ZC[domZoneIdx]};margin-top:2px;letter-spacing:.3px;">ZONE ${domZoneIdx+1}</div>`:'';
+ if(a.avg_hr)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val" style="color:#1a1a1a">${Math.round(a.avg_hr)}<span style="font-size:9px;font-weight:400;color:#1a1a1a"> bpm</span></div><div class="ac-stat-lbl">AVG HR</div>${zSubLbl}</div>`);
  if(a.elev>0)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val">${Math.round(a.elev)}<span style="font-size:9px;font-weight:400;color:#1a1a1a"> m</span></div><div class="ac-stat-lbl">Elev Gain</div></div>`);
+ // Pilot: splits table for May 2026 runs that have splits data
+ let splitsHtml='';
+ if(isMayRun&&Array.isArray(a.splits)&&a.splits.length){
+  const fmtSplit=sec=>{const m=Math.floor(sec/60),s=Math.round(sec%60);return `${m}:${String(s).padStart(2,'0')}`;};
+  const fmtPaceMin=secPerKm=>{const m=Math.floor(secPerKm/60),s=Math.round(secPerKm%60);return `${m}:${String(s).padStart(2,'0')}`;};
+  const rows=a.splits.map(s=>{
+   const km=(s.distance/1000);
+   const pace=km>0?s.time/km:0;
+   const hrClr=s.hr?ZC[s.hr>184?4:s.hr>=169?3:s.hr>=154?2:s.hr>=124?1:0]:'#999';
+   const elevSign=s.elev>0?'+':'';
+   return `<div style="display:grid;grid-template-columns:24px 60px 1fr 50px 50px;gap:6px;align-items:center;padding:4px 0;border-top:1px solid #f5f5f5;font-size:11px;">
+    <div style="color:#666;font-weight:600;">${s.n}</div>
+    <div style="color:#1a1a1a;font-weight:600;">${fmtPaceMin(pace)}</div>
+    <div style="background:#f5f5f0;border-radius:3px;height:5px;overflow:hidden;"><div style="height:100%;width:${Math.min(100,(pace/600)*100)}%;background:#344f1f;"></div></div>
+    <div style="color:${hrClr};font-weight:600;text-align:right;">${s.hr||'—'}<span style="font-size:8px;color:#999;">bpm</span></div>
+    <div style="color:#666;text-align:right;font-size:10px;">${elevSign}${Math.round(s.elev)}m</div>
+   </div>`;
+  }).join('');
+  splitsHtml=`<div class="ac-zw" style="padding:10px 0;border-top:1px solid #f5f5f5;margin-top:8px;">
+   <div style="font-size:10px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">Splits</div>
+   <div style="display:grid;grid-template-columns:24px 60px 1fr 50px 50px;gap:6px;font-size:9px;color:#999;text-transform:uppercase;letter-spacing:.4px;padding-bottom:2px;">
+    <div>KM</div><div>Pace</div><div></div><div style="text-align:right;">HR</div><div style="text-align:right;">Elev</div>
+   </div>
+   ${rows}
+  </div>`;
+ }
  const inlineIco=IC[WI[a.sport]||'run']||'';
  const zoneBg=domZoneIdx>=0?ZC[domZoneIdx]:'#1a1a1a';
  const zoneTxt=domZoneIdx===2?'#1a1a1a':'#fff';
  const summary=`<div class="ac-top"><div class="ac-info"><div class="ac-name"><span style="margin-right:7px;">${inlineIco}</span>${a.name}${isPR?'<i class="fa-solid fa-medal" style="color:#D4A800;margin-left:8px;font-size:.95em;"></i><span style="color:#D4A800;font-weight:700;font-size:.85em;margin-left:4px;letter-spacing:.4px;">PR</span>':''}</div><div class="ac-meta">${fmtWorkoutDate(a.date,a.start_time)}</div></div><div class="ac-arr">▾</div></div>${statCells.length?`<div class="ac-stats-row">${statCells.join('')}</div>`:''}`;
- const details=`${a.highlight?`<div class="ac-hl"><div class="hl-s"></div><div class="hl-t">${a.highlight}</div></div>`:''}${a.description?`<div class="ac-desc">${a.description}</div>`:''}${a.comparison?`<div class="ac-cmp">${a.comparison}</div>`:''}${zrows?`<div class="ac-zw">${zrows}</div>`:''}<a href="https://www.strava.com/activities/${a.id}" target="_blank" rel="noopener" class="ac-strava" onclick="event.stopPropagation();">View on Strava ↗</a>`;
+ const details=`${a.highlight?`<div class="ac-hl"><div class="hl-s"></div><div class="hl-t">${a.highlight}</div></div>`:''}${a.description?`<div class="ac-desc">${a.description}</div>`:''}${a.comparison?`<div class="ac-cmp">${a.comparison}</div>`:''}${zrows?`<div class="ac-zw">${zrows}</div>`:''}${splitsHtml}<a href="https://www.strava.com/activities/${a.id}" target="_blank" rel="noopener" class="ac-strava" onclick="event.stopPropagation();">View on Strava ↗</a>`;
  return `<div class="ac"><div class="ac-summary" onclick="toggleAc(this.parentNode)">${summary}</div><div class="ac-details">${details}</div></div>`;
 }
 
