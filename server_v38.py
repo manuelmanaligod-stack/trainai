@@ -95,29 +95,36 @@ def classify_zone(avg_hr):
 
 def fetch_activity_zones(token, strava_id):
     """Fetch Strava's exact HR zone distribution for one activity.
-    Returns a JSON string of [s_z1, s_z2, s_z3, s_z4, s_z5] in seconds,
-    or None if unavailable / no HR data."""
+    Returns (json_str, status) where status is one of:
+      'ok'      — zones found, json_str is the data
+      'no_hr'   — request OK but no heartrate block / all zeros
+      'limited' — Strava rate-limited (429); caller should stop
+      'missing' — 404 / activity has no zones endpoint
+      'error'   — other failure"""
     try:
         r = requests.get(
             f"https://www.strava.com/api/v3/activities/{strava_id}/zones",
             headers={"Authorization": f"Bearer {token}"},
             timeout=8
         )
+        if r.status_code == 429:
+            return None, 'limited'
+        if r.status_code == 404:
+            return None, 'missing'
         if r.status_code != 200:
-            return None
+            return None, 'error'
         for block in r.json():
             if block.get("type") == "heartrate":
                 buckets = block.get("distribution_buckets", [])
                 times = [b.get("time", 0) for b in buckets[:5]]
-                # Pad to 5 zones if Strava returned fewer
                 while len(times) < 5:
                     times.append(0)
                 if sum(times) > 0:
-                    return json.dumps(times)
-        return None
+                    return json.dumps(times), 'ok'
+        return None, 'no_hr'
     except Exception as e:
         print(f"[Zones] Failed for {strava_id}: {e}")
-        return None
+        return None, 'error'
 
 def fetch_new_activities(token, after_date=None):
     """Fetch only activities newer than after_date. If None, fetch all 2025+."""
@@ -167,7 +174,9 @@ def sync_activities_to_db(token, force=False):
         for a in acts:
             avg_hr = a.get("average_heartrate")
             # Fetch exact HR zones from Strava (only if activity has HR data)
-            hr_zones_json = fetch_activity_zones(token, a["id"]) if avg_hr else None
+            hr_zones_json = None
+            if avg_hr:
+                hr_zones_json, _status = fetch_activity_zones(token, a["id"])
             try:
                 conn.execute("""
                     INSERT OR REPLACE INTO activities
@@ -396,6 +405,30 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 self.send_response(404)
                 self.end_headers()
+        elif self.path == "/zones_status":
+            try:
+                with get_db() as conn:
+                    total = conn.execute("SELECT COUNT(*) AS n FROM activities").fetchone()["n"]
+                    with_hr = conn.execute("SELECT COUNT(*) AS n FROM activities WHERE avg_hr IS NOT NULL").fetchone()["n"]
+                    exact = conn.execute("SELECT COUNT(*) AS n FROM activities WHERE hr_zones IS NOT NULL").fetchone()["n"]
+                    sample = conn.execute(
+                        "SELECT date, sport, name FROM activities WHERE hr_zones IS NOT NULL ORDER BY date DESC LIMIT 10"
+                    ).fetchall()
+                self.send_response(200)
+                self.send_header("Content-type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "total": total,
+                    "with_hr": with_hr,
+                    "exact_strava_zones": exact,
+                    "still_estimated": with_hr - exact,
+                    "pct_exact": round(exact / with_hr * 100, 1) if with_hr else 0,
+                    "newest_with_exact": [{"date": r["date"], "sport": r["sport"], "name": r["name"]} for r in sample]
+                }, indent=2).encode())
+            except Exception as e:
+                self.send_response(500); self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
+            return
         elif self.path == "/goals":
             # Load from DB, fall back to file if DB is empty (Render spin-down)
             with get_db() as conn:
@@ -421,7 +454,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.path == "/backfill_zones":
             # Backfill exact HR zones for existing activities that don't have them.
-            # Limits to N per call to stay under Strava rate limits.
+            # Stops early on Strava rate limit (429). Reports per-status counts.
             try:
                 length = int(self.headers.get("Content-Length", 0))
                 body = self.rfile.read(length) if length else b'{}'
@@ -432,26 +465,83 @@ class Handler(BaseHTTPRequestHandler):
                 token = get_access_token()
                 with get_db() as conn:
                     rows = conn.execute(
-                        "SELECT strava_id FROM activities WHERE hr_zones IS NULL AND avg_hr IS NOT NULL ORDER BY date DESC LIMIT ?",
+                        "SELECT strava_id, date, name FROM activities WHERE hr_zones IS NULL AND avg_hr IS NOT NULL ORDER BY date DESC LIMIT ?",
                         (limit,)
                     ).fetchall()
-                done, skipped = 0, 0
+
+                counts = {"ok": 0, "no_hr": 0, "missing": 0, "error": 0, "limited": 0}
+                hit_limit = False
+                processed = 0
                 for r in rows:
                     sid = r["strava_id"]
-                    z = fetch_activity_zones(token, sid)
+                    z, status = fetch_activity_zones(token, sid)
+                    counts[status] = counts.get(status, 0) + 1
+                    processed += 1
+                    if status == 'limited':
+                        print(f"[Backfill] Rate limited at activity {sid} ({r['date']} {r['name']}). Stopping early.")
+                        hit_limit = True
+                        break
                     if z:
                         with get_db() as conn:
                             conn.execute("UPDATE activities SET hr_zones=? WHERE strava_id=?", (z, sid))
-                        done += 1
-                    else:
-                        skipped += 1
-                print(f"[Backfill] Updated {done} activities, skipped {skipped}")
+                    time.sleep(0.05)  # gentle pacing
+
+                # Remaining count after this run
+                with get_db() as conn:
+                    remaining = conn.execute(
+                        "SELECT COUNT(*) AS n FROM activities WHERE hr_zones IS NULL AND avg_hr IS NOT NULL"
+                    ).fetchone()["n"]
+                    total_exact = conn.execute(
+                        "SELECT COUNT(*) AS n FROM activities WHERE hr_zones IS NOT NULL"
+                    ).fetchone()["n"]
+
+                print(f"[Backfill] Processed {processed}/{len(rows)}. "
+                      f"ok={counts['ok']} no_hr={counts['no_hr']} missing={counts['missing']} "
+                      f"error={counts['error']} limited={counts['limited']}. "
+                      f"Remaining to backfill: {remaining}. Total exact in DB: {total_exact}")
+
                 self.send_response(200)
                 self.send_header("Content-type", "application/json")
                 self.end_headers()
-                self.wfile.write(json.dumps({"ok": True, "done": done, "skipped": skipped, "remaining_check": len(rows)}).encode())
+                self.wfile.write(json.dumps({
+                    "ok": True,
+                    "processed": processed,
+                    "requested": len(rows),
+                    "counts": counts,
+                    "hit_rate_limit": hit_limit,
+                    "remaining": remaining,
+                    "total_exact_in_db": total_exact,
+                    "hint": "Wait 15 minutes if hit_rate_limit is true, then call again." if hit_limit else ("All done! No more activities need backfilling." if remaining == 0 else f"{remaining} activities still need backfilling — call again to continue.")
+                }).encode())
             except Exception as e:
                 import traceback; traceback.print_exc()
+                self.send_response(500); self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
+            return
+
+        if self.path == "/zones_status":
+            # Quick read-only status of zone backfill progress
+            try:
+                with get_db() as conn:
+                    total = conn.execute("SELECT COUNT(*) AS n FROM activities").fetchone()["n"]
+                    with_hr = conn.execute("SELECT COUNT(*) AS n FROM activities WHERE avg_hr IS NOT NULL").fetchone()["n"]
+                    exact = conn.execute("SELECT COUNT(*) AS n FROM activities WHERE hr_zones IS NOT NULL").fetchone()["n"]
+                    missing = with_hr - exact
+                    sample = conn.execute(
+                        "SELECT date, sport, name FROM activities WHERE hr_zones IS NOT NULL ORDER BY date DESC LIMIT 5"
+                    ).fetchall()
+                self.send_response(200)
+                self.send_header("Content-type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "total": total,
+                    "with_hr": with_hr,
+                    "exact_strava_zones": exact,
+                    "still_estimated": missing,
+                    "pct_exact": round(exact / with_hr * 100, 1) if with_hr else 0,
+                    "newest_with_exact": [{"date": r["date"], "sport": r["sport"], "name": r["name"]} for r in sample]
+                }).encode())
+            except Exception as e:
                 self.send_response(500); self.end_headers()
                 self.wfile.write(json.dumps({"error": str(e)}).encode())
             return
