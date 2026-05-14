@@ -1539,7 +1539,7 @@ function setYear(y,el){
 
 function renderMonthBlocks(){
  // Show run-zone filter only for May 2026 + Run filter (pilot)
- const isMayRunPilot=wMonth==='2026-05'&&wFilter==='Run';
+ const isMayRunPilot=wFilter==='Run'&&wYear===2026;
  const rzRow=document.getElementById('runZoneRow');
  if(rzRow)rzRow.style.display=isMayRunPilot?'flex':'none';
  if(!isMayRunPilot)wRunZone='all'; // reset when filter is hidden
@@ -1639,7 +1639,7 @@ function acHtml(a){
  const durStr=dH>0?`${dH}:${pad(dM)}:${pad(dS)}`:`${dM}:${pad(dS)}`;
  statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val">${durStr}</div><div class="ac-stat-lbl">Time</div></div>`);
  if(paceStr)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val">${paceStr}</div><div class="ac-stat-lbl">Pace /km</div></div>`);
- const isMayRun=a.date&&a.date.startsWith('2026-05')&&(a.sport==='Run'||a.sport==='VirtualRun');
+ const isMayRun=a.date&&a.date.startsWith('2026')&&(a.sport==='Run'||a.sport==='VirtualRun');
  if(a.avg_hr){const zDot=(isMayRun&&domZoneIdx>=0)?`<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${ZC[domZoneIdx]};margin-right:5px;vertical-align:middle;"></span>`:'';statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val" style="color:#1a1a1a">${zDot}${Math.round(a.avg_hr)}<span style="font-size:9px;font-weight:400;color:#1a1a1a"> bpm</span></div><div class="ac-stat-lbl">AVG HR</div></div>`);}
  if(a.elev>0)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val">${Math.round(a.elev)}<span style="font-size:9px;font-weight:400;color:#1a1a1a"> m</span></div><div class="ac-stat-lbl">Elev Gain</div></div>`);
  // Pilot: splits table for May 2026 runs that have splits data
