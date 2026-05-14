@@ -1640,7 +1640,7 @@ function acHtml(a){
  statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val">${durStr}</div><div class="ac-stat-lbl">Time</div></div>`);
  if(paceStr)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val">${paceStr}</div><div class="ac-stat-lbl">Pace /km</div></div>`);
  const isMayRun=a.date&&a.date.startsWith('2026-05')&&(a.sport==='Run'||a.sport==='VirtualRun');
- if(a.avg_hr)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val" style="color:#1a1a1a">${Math.round(a.avg_hr)}<span style="font-size:9px;font-weight:400;color:#1a1a1a"> bpm</span></div><div class="ac-stat-lbl">AVG HR</div></div>`);
+ if(a.avg_hr){const zDot=(isMayRun&&domZoneIdx>=0)?`<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${ZC[domZoneIdx]};margin-right:5px;vertical-align:middle;"></span>`:'';statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val" style="color:#1a1a1a">${zDot}${Math.round(a.avg_hr)}<span style="font-size:9px;font-weight:400;color:#1a1a1a"> bpm</span></div><div class="ac-stat-lbl">AVG HR</div></div>`);}
  if(a.elev>0)statCells.push(`<div class="ac-stat-cell"><div class="ac-stat-val">${Math.round(a.elev)}<span style="font-size:9px;font-weight:400;color:#1a1a1a"> m</span></div><div class="ac-stat-lbl">Elev Gain</div></div>`);
  // Pilot: splits table for May 2026 runs that have splits data
  let splitsHtml='';
@@ -1671,10 +1671,7 @@ function acHtml(a){
  const inlineIco=IC[WI[a.sport]||'run']||'';
  const zoneBg=domZoneIdx>=0?ZC[domZoneIdx]:'#1a1a1a';
  const zoneTxt=domZoneIdx===2?'#1a1a1a':'#fff';
- // Pilot: show zone pill beside title for May 2026 runs
- const zPillTxt=domZoneIdx===2?'#1a1a1a':'#fff';
- const zonePill=(isMayRun&&domZoneIdx>=0)?`<span style="display:inline-block;background:${ZC[domZoneIdx]};color:${zPillTxt};font-size:9px;font-weight:700;letter-spacing:.3px;padding:2px 7px;border-radius:5px;margin-left:8px;vertical-align:middle;">${ZN[domZoneIdx]}</span>`:'';
- const summary=`<div class="ac-top"><div class="ac-info"><div class="ac-name"><span style="margin-right:7px;">${inlineIco}</span>${a.name}${zonePill}${isPR?'<i class="fa-solid fa-medal" style="color:#D4A800;margin-left:8px;font-size:.95em;"></i><span style="color:#D4A800;font-weight:700;font-size:.85em;margin-left:4px;letter-spacing:.4px;">PR</span>':''}</div><div class="ac-meta">${fmtWorkoutDate(a.date,a.start_time)}</div></div><div class="ac-arr">▾</div></div>${statCells.length?`<div class="ac-stats-row">${statCells.join('')}</div>`:''}`;
+ const summary=`<div class="ac-top"><div class="ac-info"><div class="ac-name"><span style="margin-right:7px;">${inlineIco}</span>${a.name}${isPR?'<i class="fa-solid fa-medal" style="color:#D4A800;margin-left:8px;font-size:.95em;"></i><span style="color:#D4A800;font-weight:700;font-size:.85em;margin-left:4px;letter-spacing:.4px;">PR</span>':''}</div><div class="ac-meta">${fmtWorkoutDate(a.date,a.start_time)}</div></div><div class="ac-arr">▾</div></div>${statCells.length?`<div class="ac-stats-row">${statCells.join('')}</div>`:''}`;
  const details=`${a.highlight?`<div class="ac-hl"><div class="hl-s"></div><div class="hl-t">${a.highlight}</div></div>`:''}${a.description?`<div class="ac-desc">${a.description}</div>`:''}${a.comparison?`<div class="ac-cmp">${a.comparison}</div>`:''}${zrows?`<div class="ac-zw">${zrows}</div>`:''}${splitsHtml}<a href="https://www.strava.com/activities/${a.id}" target="_blank" rel="noopener" class="ac-strava" onclick="event.stopPropagation();">View on Strava ↗</a>`;
  return `<div class="ac"><div class="ac-summary" onclick="toggleAc(this.parentNode)">${summary}</div><div class="ac-details">${details}</div></div>`;
 }
