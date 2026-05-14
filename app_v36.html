@@ -724,11 +724,11 @@ canvas{width:100%!important;}
  <!-- Run-zone filter (May 2026 + Run filter only) -->
  <div id="runZoneRow" style="display:none;margin:8px 14px 0;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;gap:6px;-webkit-overflow-scrolling:touch;">
  <div class="fchip active" onclick="setWRunZone('all',this)" style="flex-shrink:0;">All</div>
- <div class="fchip" onclick="setWRunZone(1,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#5AC8FA;margin-right:5px;"></span>Z1 Recovery</div>
- <div class="fchip" onclick="setWRunZone(2,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#34C759;margin-right:5px;"></span>Z2 Aerobic</div>
- <div class="fchip" onclick="setWRunZone(3,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#FFD60A;margin-right:5px;"></span>Z3 Tempo</div>
- <div class="fchip" onclick="setWRunZone(4,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#FF9F0A;margin-right:5px;"></span>Z4 Threshold</div>
- <div class="fchip" onclick="setWRunZone(5,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#FF375F;margin-right:5px;"></span>Z5 Max</div>
+ <div class="fchip" onclick="setWRunZone(1,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#F1D1CE;margin-right:5px;"></span>Z1 Recovery</div>
+ <div class="fchip" onclick="setWRunZone(2,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#E5A39B;margin-right:5px;"></span>Z2 Aerobic</div>
+ <div class="fchip" onclick="setWRunZone(3,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#C56F65;margin-right:5px;"></span>Z3 Tempo</div>
+ <div class="fchip" onclick="setWRunZone(4,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#DA2929;margin-right:5px;"></span>Z4 Threshold</div>
+ <div class="fchip" onclick="setWRunZone(5,this)" style="flex-shrink:0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#8B1A1A;margin-right:5px;"></span>Z5 Max</div>
  </div>
  <div id="monthBlocks"></div>
  <div class="pgrow" id="pgRow" style="display:none">
@@ -888,12 +888,12 @@ canvas{width:100%!important;}
 </div><!-- /app-shell -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
-const ZC=['#5AC8FA','#34C759','#FFD60A','#FF9F0A','#FF375F'];
+const ZC=['#F1D1CE','#E5A39B','#C56F65','#DA2929','#8B1A1A'];
 const ZN=['Z1 Recovery','Z2 Aerobic','Z3 Tempo','Z4 Threshold','Z5 Max'];
 const ZR=['<124','124–154','154–169','169–184','184+'];
 const ZB=[0,124,154,169,184,999];
 // Pace zones based on ~5:15/km threshold (Z4). Seconds per km.
-const PZC=['#5AC8FA','#34C759','#FFD60A','#FF9F0A','#FF375F'];
+const PZC=['#F1D1CE','#E5A39B','#C56F65','#DA2929','#8B1A1A'];
 const PZN=['Zone 1','Zone 2','Zone 3','Zone 4','Zone 5'];
 // [slow_limit, fast_limit] in sec/km. Z1>390, Z2 355-390, Z3 315-355, Z4 295-315, Z5<295
 const PZB=[999,390,355,315,295,0]; // descending: slower = lower zone
