@@ -832,21 +832,36 @@ class Handler(BaseHTTPRequestHandler):
                 force_refresh = payload.get("force_refresh", False)
 
                 # Fast path: if DB was synced within the last 5 minutes and the
-                # caller isn't forcing a refresh, skip Strava OAuth + delta probe
-                # entirely. Saves ~1-2s on warm requests.
+                # caller isn't forcing a refresh, skip Strava OAuth + delta probe.
+                # NEW: Never block the request waiting for a sync. If a sync is
+                # warranted, kick it off in a background thread and return what
+                # the DB currently has. Prevents Render 30-60s HTTP timeouts and
+                # keeps the app responsive even when the DB is empty after a deploy.
                 SKIP_SYNC_WINDOW = 5 * 60  # seconds
                 with get_db() as conn:
                     log = conn.execute("SELECT last_sync FROM sync_log WHERE id=1").fetchone()
+                    db_count = conn.execute("SELECT COUNT(*) FROM activities").fetchone()[0]
                 last_sync_age = (time.time() - float(log["last_sync"])) if log and log["last_sync"] else 1e9
+                needs_sync = force_refresh or last_sync_age >= SKIP_SYNC_WINDOW
 
-                if not force_refresh and last_sync_age < SKIP_SYNC_WINDOW:
-                    print(f"[Analyze] Fast path — DB synced {int(last_sync_age)}s ago, skipping Strava")
-                    token = None
-                    new_count = 0
-                else:
-                    token = get_access_token()
-                    # Smart sync: check for new activities
-                    new_count = sync_activities_to_db(token, force=force_refresh)
+                token = None
+                new_count = 0
+                if needs_sync and not _sync_running():
+                    import threading
+                    def _bg_sync():
+                        try:
+                            tok = get_access_token()
+                            n = sync_activities_to_db(tok, force=force_refresh)
+                            print(f"[Analyze/BG] Synced {n} activities")
+                        except Exception as e:
+                            print(f"[Analyze/BG] Sync failed: {e}")
+                        finally:
+                            _set_sync_running(False)
+                    _set_sync_running(True)
+                    threading.Thread(target=_bg_sync, daemon=True).start()
+                    print(f"[Analyze] Background sync kicked off (DB has {db_count} activities, last sync {int(last_sync_age)}s ago)")
+                elif not needs_sync:
+                    print(f"[Analyze] Fast path — DB synced {int(last_sync_age)}s ago")
 
                 all_acts  = get_activities_from_db()
                 recent10  = all_acts[:10]
@@ -932,6 +947,11 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body_out)
 
+# Module-level flag so /analyze and boot_sync_if_empty don't double-sync
+_sync_lock_flag = {"running": False}
+def _sync_running(): return _sync_lock_flag["running"]
+def _set_sync_running(v): _sync_lock_flag["running"] = bool(v)
+
 def boot_sync_if_empty():
     """If the DB is brand-new/empty (e.g. after a Render deploy wiped it),
     kick off an initial sync in a background thread. Probes Strava's read
@@ -946,8 +966,6 @@ def boot_sync_if_empty():
         def _sync():
             try:
                 token = get_access_token()
-                # Cheap probe: ask Strava for 1 activity. If 429, abort so we don't
-                # blow through more rate-limit budget on a doomed sync attempt.
                 probe = requests.get(
                     "https://www.strava.com/api/v3/athlete/activities",
                     headers={"Authorization": f"Bearer {token}"},
@@ -961,6 +979,9 @@ def boot_sync_if_empty():
                 print(f"[Boot] Auto-synced {added} activities to fresh DB")
             except Exception as e:
                 print(f"[Boot] Auto-sync failed: {e}")
+            finally:
+                _set_sync_running(False)
+        _set_sync_running(True)
         threading.Thread(target=_sync, daemon=True).start()
         print("[Boot] DB empty — probing Strava before sync")
     except Exception as e:
