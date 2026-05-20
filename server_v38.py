@@ -19,8 +19,19 @@ AI_TTL               = 6 * 3600  # Re-run Groq if AI is older than 6hrs AND new 
 
 # ── DATABASE SETUP ────────────────────────────────────────────────────
 def get_db():
-    conn = sqlite3.connect(DB_FILE)
+    # 30s timeout: wait for the lock instead of immediately throwing
+    # "database is locked" when a background sync/AI write is in progress.
+    conn = sqlite3.connect(DB_FILE, timeout=30.0)
     conn.row_factory = sqlite3.Row
+    # WAL mode allows concurrent readers + one writer (vs default which
+    # blocks all reads during any write). Set once per connection.
+    # synchronous=NORMAL is the recommended setting with WAL — fast and safe.
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA busy_timeout=30000")
+    except Exception:
+        pass
     return conn
 
 def init_db():
