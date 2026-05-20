@@ -866,28 +866,45 @@ class Handler(BaseHTTPRequestHandler):
                 all_acts  = get_activities_from_db()
                 recent10  = all_acts[:10]
 
-                # Decide whether to call Groq
+                # Decide whether to call Groq.
+                # NEVER block the request waiting for Groq. If AI is stale,
+                # kick it off in a background thread and return the cached
+                # (possibly empty) AI now. Groq calls can take 10-30s and
+                # would otherwise blow past Render's HTTP timeout.
                 cache_age = ai_cache_age()
                 cached_ai = get_ai_cache()
                 ai_empty  = not cached_ai or not cached_ai.get("summary") or cached_ai.get("summary") == "Tap Analyze again."
                 has_new   = new_count > 0
-                need_ai   = force_refresh or has_new or cache_age > AI_TTL or ai_empty
+                need_ai   = (force_refresh or has_new or cache_age > AI_TTL or ai_empty) and len(recent10) > 0
 
-                if need_ai:
-                    reason = "force refresh" if force_refresh else f"{new_count} new workouts" if has_new else f"AI cache {int(cache_age/3600)}h old"
-                    print(f"[AI] Running Groq ({reason})...")
-                    ai = ask_groq(recent10, goals)
-                    save_ai_cache(ai.get("summary",""), ai.get("analysis",""), ai.get("next_workout",{}))
-                    update_activity_ai(ai.get("workouts",[]))
-                else:
-                    print(f"[AI] Skipping Groq — no new workouts, cache {int(cache_age/60)}m old.")
-                    cached_ai = get_ai_cache()
+                if need_ai and not _ai_running():
+                    reason = "force refresh" if force_refresh else f"{new_count} new workouts" if has_new else (f"AI cache {int(cache_age/3600)}h old" if cache_age < 1e6 else "no cache yet")
+                    import threading
+                    def _bg_ai(snapshot, gls, rsn):
+                        try:
+                            print(f"[AI/BG] Running Groq ({rsn})...")
+                            out = ask_groq(snapshot, gls)
+                            save_ai_cache(out.get("summary",""), out.get("analysis",""), out.get("next_workout",{}))
+                            update_activity_ai(out.get("workouts",[]))
+                            print(f"[AI/BG] Done")
+                        except Exception as e:
+                            print(f"[AI/BG] Failed: {e}")
+                        finally:
+                            _set_ai_running(False)
+                    _set_ai_running(True)
+                    threading.Thread(target=_bg_ai, args=(recent10, goals, reason), daemon=True).start()
+                # Always serve cached AI (may be empty if first run)
+                if cached_ai:
+                    try:    nxt = json.loads(cached_ai["next_workout"]) if cached_ai["next_workout"] else {}
+                    except: nxt = {}
                     ai = {
-                        "summary":      cached_ai["summary"],
-                        "analysis":     cached_ai["analysis"],
-                        "next_workout": json.loads(cached_ai["next_workout"]),
+                        "summary":      cached_ai["summary"] or "",
+                        "analysis":     cached_ai["analysis"] or "",
+                        "next_workout": nxt,
                         "workouts":     []
                     }
+                else:
+                    ai = {"summary":"", "analysis":"", "next_workout":{}, "workouts":[]}
 
                 # Reload activities with updated AI highlights
                 all_acts = get_activities_from_db()
@@ -947,10 +964,14 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body_out)
 
-# Module-level flag so /analyze and boot_sync_if_empty don't double-sync
+# Module-level flags so concurrent /analyze requests don't double-sync or double-AI
 _sync_lock_flag = {"running": False}
 def _sync_running(): return _sync_lock_flag["running"]
 def _set_sync_running(v): _sync_lock_flag["running"] = bool(v)
+
+_ai_lock_flag = {"running": False}
+def _ai_running(): return _ai_lock_flag["running"]
+def _set_ai_running(v): _ai_lock_flag["running"] = bool(v)
 
 def boot_sync_if_empty():
     """If the DB is brand-new/empty (e.g. after a Render deploy wiped it),
