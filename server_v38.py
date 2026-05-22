@@ -5,7 +5,7 @@ Gear 2 Server v38 — SQLite DB + Smart Sync
 - Strava delta sync (only fetches new activities)
 """
 from http.server import HTTPServer, BaseHTTPRequestHandler
-import json, requests, os, re, time, sqlite3
+import json, requests, os, re, time, sqlite3, gzip
 from datetime import datetime
 from groq import Groq
 
@@ -483,6 +483,23 @@ def read_file(path):
     with open(path) as f: return f.read()
 
 class Handler(BaseHTTPRequestHandler):
+    def _send_json(self, payload, status=200):
+        """Write a JSON response, gzip-compressed when the client accepts it.
+        Cuts ~70% off large bodies like /analyze (100KB → ~25KB)."""
+        body = json.dumps(payload).encode()
+        accept = self.headers.get("Accept-Encoding", "")
+        use_gzip = "gzip" in accept and len(body) > 512  # don't bother for tiny bodies
+        if use_gzip:
+            body = gzip.compress(body, compresslevel=6)
+        self.send_response(status)
+        self.send_header("Content-type", "application/json")
+        if use_gzip:
+            self.send_header("Content-Encoding", "gzip")
+        self.send_header("Content-Length", len(body))
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.wfile.write(body)
+
     def log_message(self, fmt, *args):
         print(f"[{datetime.now().strftime('%H:%M:%S')}] {args[0]} {args[1]}")
 
@@ -967,13 +984,7 @@ class Handler(BaseHTTPRequestHandler):
                 import traceback
                 result = {"success": False, "error": str(e), "trace": traceback.format_exc()}
 
-            body_out = json.dumps(result).encode()
-            self.send_response(200)
-            self.send_header("Content-type", "application/json")
-            self.send_header("Content-Length", len(body_out))
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.end_headers()
-            self.wfile.write(body_out)
+            self._send_json(result)
 
 # Module-level flags so concurrent /analyze requests don't double-sync or double-AI
 _sync_lock_flag = {"running": False}
